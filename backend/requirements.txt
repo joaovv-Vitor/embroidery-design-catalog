@@ -1,4 +1,13 @@
-fastapi
+fastapi[standard]
 uvicorn[standard]
-pydantic
-
+sqlalchemy
+asyncpg
+alembic
+pydantic-settings
+python-multipart
+boto3
+pyembroidery
+pillow
+pytest
+pytest-asyncio
+ruff

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,7 +15,7 @@ from app.schemas.importacao import (
 )
 from app.services.importacao_lote import ImportacaoArquivoError, ImportacaoLoteService, ResultadoImportacaoLote
 
-router = APIRouter(prefix="/api/v1/importacoes", tags=["importações"])
+router = APIRouter(prefix="/importacoes", tags=["importações"])
 relative_paths_adapter = TypeAdapter(list[str])
 
 
@@ -54,7 +54,7 @@ def _to_lote_response(result: ResultadoImportacaoLote) -> ImportacaoLoteResponse
     )
 
 
-@router.post("/lote", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def importar_lote(
     arquivos: Annotated[list[UploadFile], File(description="Arquivos .PES a serem importados")],
     session: DbSession,
@@ -80,53 +80,9 @@ async def importar_lote(
     return _to_lote_response(result)
 
 
-@router.post("/arquivo", status_code=status.HTTP_201_CREATED)
-async def importar_arquivo(
-    arquivo: Annotated[UploadFile, File(description="Arquivo .PES a ser importado")],
-    session: DbSession,
-    caminho_relativo: Annotated[str | None, Form(max_length=1024)] = None,
-    identificacao_origem: Annotated[str | None, Form(max_length=255)] = None,
-) -> ImportacaoArquivoResponse:
-    try:
-        resultado, item = await ImportacaoLoteService().importar_arquivo(
-            session,
-            arquivo,
-            caminho_relativo,
-            identificacao_origem,
-        )
-    except ImportacaoArquivoError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-
-    if None in {
-        item.desenho_id,
-        item.matriz_id,
-        item.nome,
-        item.largura_mm,
-        item.altura_mm,
-        item.quantidade_pontos,
-        item.quantidade_cores,
-    }:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Resultado da importação incompleto.",
-        )
-
-    return ImportacaoArquivoResponse(
-        importacao_id=resultado.id,
-        item_importacao_id=item.id,
-        desenho_id=item.desenho_id,
-        matriz_id=item.matriz_id,
-        nome=item.nome,
-        largura_mm=item.largura_mm,
-        altura_mm=item.altura_mm,
-        quantidade_pontos=item.quantidade_pontos,
-        quantidade_cores=item.quantidade_cores,
-    )
-
-
 @router.get("/{importacao_id}")
 async def obter_importacao(
-    importacao_id: Annotated[int, Path(ge=1)],
+    importacao_id: int,
     session: DbSession,
 ) -> ImportacaoLoteResponse:
     query = (
@@ -161,9 +117,39 @@ async def obter_importacao(
     )
 
 
+@router.post("/arquivo", status_code=status.HTTP_201_CREATED)
+async def importar_arquivo(
+    arquivo: Annotated[UploadFile, File(description="Arquivo .PES a ser importado")],
+    session: DbSession,
+    caminho_relativo: Annotated[str | None, Form(max_length=1024)] = None,
+    identificacao_origem: Annotated[str | None, Form(max_length=255)] = None,
+) -> ImportacaoArquivoResponse:
+    try:
+        resultado, item = await ImportacaoLoteService().importar_arquivo(
+            session,
+            arquivo,
+            caminho_relativo,
+            identificacao_origem,
+        )
+    except ImportacaoArquivoError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+
+    return ImportacaoArquivoResponse(
+        importacao_id=resultado.id,
+        item_importacao_id=item.id,
+        desenho_id=item.desenho_id,
+        matriz_id=item.matriz_id,
+        nome=item.nome,
+        largura_mm=item.largura_mm,
+        altura_mm=item.altura_mm,
+        quantidade_pontos=item.quantidade_pontos,
+        quantidade_cores=item.quantidade_cores,
+    )
+
+
 @router.patch("/itens/{item_id}")
 async def atualizar_item_importacao(
-    item_id: Annotated[int, Path(ge=1)],
+    item_id: int,
     dados: AtualizarItemImportacaoRequest,
     session: DbSession,
 ) -> ItemImportacaoLoteResponse:

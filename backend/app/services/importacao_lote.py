@@ -41,6 +41,21 @@ class ItemImportado:
 
 
 @dataclass(frozen=True)
+class ItemImportadoSucesso:
+    id: int
+    nome_arquivo: str
+    caminho_relativo: str | None
+    status: str
+    matriz_id: int
+    desenho_id: int
+    nome: str
+    largura_mm: float
+    altura_mm: float
+    quantidade_pontos: int
+    quantidade_cores: int
+
+
+@dataclass(frozen=True)
 class ResultadoImportacaoLote:
     id: int
     nome_lote: str
@@ -110,7 +125,7 @@ class ImportacaoLoteService:
         arquivo: UploadFile,
         caminho_relativo: str | None,
         identificacao_origem: str | None,
-    ) -> tuple[ResultadoImportacaoLote, ItemImportado]:
+    ) -> tuple[ResultadoImportacaoLote, ItemImportadoSucesso]:
         caminhos = [caminho_relativo] if caminho_relativo else None
         resultado = await self.importar(
             session=session,
@@ -122,6 +137,16 @@ class ImportacaoLoteService:
         item = resultado.itens[0]
         if item.status == "falha":
             raise ImportacaoArquivoError(item.motivo_falha or "Não foi possível importar o arquivo.")
+        if None in {
+            item.desenho_id,
+            item.matriz_id,
+            item.nome,
+            item.largura_mm,
+            item.altura_mm,
+            item.quantidade_pontos,
+            item.quantidade_cores,
+        }:
+            raise ImportacaoArquivoError("Resultado da importação incompleto.")
         return resultado, item
 
     async def _create_importacao(

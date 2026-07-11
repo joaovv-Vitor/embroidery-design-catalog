@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routes.v1.importacoes import router as importacoes_router
+from app.api.routes.router import api_router
 from app.core.config import get_settings
 from app.core.openapi import configure_binary_file_fields
 from app.db.session import engine
@@ -17,7 +17,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
-app.include_router(importacoes_router)
+app.include_router(api_router)
 configure_binary_file_fields(app)
 
 

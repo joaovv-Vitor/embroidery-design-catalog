@@ -2,17 +2,27 @@
 
 import asyncio
 import sys
-from tempfile import TemporaryDirectory
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from sqlalchemy import text
+from sqlalchemy import text  # noqa: E402
 
-from app.db.session import engine
-from app.services.storage import ObjectStorage
+from app.db.session import engine  # noqa: E402
+from app.services.storage import ObjectStorage  # noqa: E402
+
+EXPECTED_TABLES = {
+    "arquivos_backup",
+    "categorias",
+    "desenhos",
+    "importacoes",
+    "itens_importacao",
+    "matrizes",
+    "origens_importacao",
+}
 
 
 def test_minio() -> None:
@@ -38,6 +48,13 @@ async def main() -> int:
     try:
         async with engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
+            result = await connection.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            )
+            missing_tables = EXPECTED_TABLES - set(result.scalars())
+            if missing_tables:
+                tables = ", ".join(sorted(missing_tables))
+                raise RuntimeError(f"Migrações pendentes. Tabelas ausentes: {tables}")
         print("[OK] PostgreSQL")
 
         await asyncio.to_thread(test_minio)

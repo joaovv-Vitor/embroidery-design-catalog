@@ -1,3 +1,13 @@
-from app.schemas.catalogo import DesenhoDetalhe, DesenhoResumo, ImportacaoArquivoResponse, MatrizResumo
+from app.schemas.importacao import (
+    AtualizarItemImportacaoRequest,
+    ImportacaoArquivoResponse,
+    ImportacaoLoteResponse,
+    ItemImportacaoLoteResponse,
+)
 
-__all__ = ["DesenhoDetalhe", "DesenhoResumo", "ImportacaoArquivoResponse", "MatrizResumo"]
+__all__ = [
+    "AtualizarItemImportacaoRequest",
+    "ImportacaoArquivoResponse",
+    "ImportacaoLoteResponse",
+    "ItemImportacaoLoteResponse",
+]

@@ -22,7 +22,10 @@ class ObjectStorage:
     def ensure_bucket(self) -> None:
         try:
             self.client.head_bucket(Bucket=self.settings.s3_bucket)
-        except ClientError:
+        except ClientError as error:
+            error_code = error.response.get("Error", {}).get("Code")
+            if error_code not in {"404", "NoSuchBucket", "NotFound"}:
+                raise
             self.client.create_bucket(Bucket=self.settings.s3_bucket)
 
     def upload_file(self, file_path: Path, key: str, content_type: str) -> None:

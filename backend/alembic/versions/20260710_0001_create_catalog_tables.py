@@ -5,8 +5,9 @@ Revises:
 Create Date: 2026-07-10
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260710_0001"
 down_revision = None
@@ -59,7 +60,12 @@ def upgrade() -> None:
         "matrizes",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("desenho_id", sa.Integer(), sa.ForeignKey("desenhos.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("arquivo_backup_id", sa.Integer(), sa.ForeignKey("arquivos_backup.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column(
+            "arquivo_backup_id",
+            sa.Integer(),
+            sa.ForeignKey("arquivos_backup.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("origem_importacao_id", sa.Integer(), sa.ForeignKey("origens_importacao.id", ondelete="SET NULL")),
         sa.Column("caminho_relativo_origem", sa.String(1024)),
         sa.Column("formato", sa.String(16), nullable=False),

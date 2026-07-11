@@ -1,15 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-# from app.api.routes.desenhos import router as desenhos_router
-# from app.api.routes.importacoes import router as importacoes_router
-# from app.api.routes.matrizes import router as matrizes_router
+from app.api.routes.v1.importacoes import router as importacoes_router
 from app.core.config import get_settings
+from app.core.openapi import configure_binary_file_fields
+from app.db.session import engine
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name)
-# app.include_router(importacoes_router)
-# app.include_router(desenhos_router)
-# app.include_router(matrizes_router)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.include_router(importacoes_router)
+configure_binary_file_fields(app)
 
 
 @app.get("/health", tags=["health"])

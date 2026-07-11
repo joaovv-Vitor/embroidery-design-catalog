@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageDraw
-from pyembroidery import EmbPattern
+from pyembroidery import COLOR_CHANGE, END, JUMP, TRIM, EmbPattern
 
 
 class PesProcessingError(Exception):
@@ -28,6 +28,12 @@ class PesMetadata:
 
 class PesProcessor:
     units_per_millimeter = 10
+    preview_padding = 40
+    preview_largest_side = 800
+    preview_background = "#f8fafc"
+    preview_canvas = "#ffffff"
+    preview_grid = "#e2e8f0"
+    preview_stitch_fallback = "#1f2937"
 
     def process(self, pes_path: Path, preview_path: Path) -> PesMetadata:
         try:
@@ -71,24 +77,58 @@ class PesProcessor:
         max_x: float,
         max_y: float,
     ) -> None:
-        padding = 24
-        largest_side = 800
+        padding = PesProcessor.preview_padding
+        largest_side = PesProcessor.preview_largest_side
         width = max(max_x - min_x, 1)
         height = max(max_y - min_y, 1)
         scale = min(largest_side / width, largest_side / height)
         image_size = (int(width * scale) + 2 * padding, int(height * scale) + 2 * padding)
-        image = Image.new("RGB", image_size, "white")
+        image = Image.new("RGB", image_size, PesProcessor.preview_background)
         draw = ImageDraw.Draw(image)
+        canvas_box = (padding, padding, image_size[0] - padding, image_size[1] - padding)
+        draw.rounded_rectangle(canvas_box, radius=18, fill=PesProcessor.preview_canvas, outline="#cbd5e1", width=2)
 
-        points = [
-            ((x - min_x) * scale + padding, (max_y - y) * scale + padding)
-            for x, y, _ in pattern.stitches
-        ]
-        if len(points) > 1:
-            draw.line(points, fill="#202020", width=max(1, int(scale / 12)), joint="curve")
-        elif points:
-            x, y = points[0]
-            draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill="#202020")
+        grid_step = max(40, int(scale * 10))
+        for x in range(padding + grid_step, image_size[0] - padding, grid_step):
+            draw.line((x, padding, x, image_size[1] - padding), fill=PesProcessor.preview_grid, width=1)
+        for y in range(padding + grid_step, image_size[1] - padding, grid_step):
+            draw.line((padding, y, image_size[0] - padding, y), fill=PesProcessor.preview_grid, width=1)
+
+        line_width = max(2, int(scale / 10))
+        thread_index = 0
+        points: list[tuple[float, float]] = []
+        for x, y, command in pattern.stitches:
+            point = ((x - min_x) * scale + padding, (y - min_y) * scale + padding)
+            command &= 0xFF
+            if command in {COLOR_CHANGE, END, JUMP, TRIM}:
+                PesProcessor._draw_stitches(draw, points, PesProcessor._thread_color(pattern, thread_index), line_width)
+                points = []
+                if command == COLOR_CHANGE:
+                    thread_index += 1
+                continue
+            points.append(point)
+
+        PesProcessor._draw_stitches(draw, points, PesProcessor._thread_color(pattern, thread_index), line_width)
 
         preview_path.parent.mkdir(parents=True, exist_ok=True)
         image.save(preview_path, format="PNG")
+
+    @staticmethod
+    def _thread_color(pattern: EmbPattern, thread_index: int) -> str:
+        if thread_index < len(pattern.threadlist):
+            return pattern.threadlist[thread_index].hex_color()
+        return PesProcessor.preview_stitch_fallback
+
+    @staticmethod
+    def _draw_stitches(
+        draw: ImageDraw.ImageDraw,
+        points: list[tuple[float, float]],
+        color: str,
+        line_width: int,
+    ) -> None:
+        if len(points) > 1:
+            draw.line(points, fill=color, width=line_width, joint="curve")
+        elif points:
+            x, y = points[0]
+            radius = max(2, line_width)
+            draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)

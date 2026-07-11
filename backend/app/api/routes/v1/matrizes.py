@@ -15,7 +15,18 @@ from app.services.storage import ObjectStorage
 router = APIRouter(tags=["matrizes"])
 
 
-@router.get("/matrizes/{matriz_id}/download")
+def _arquivo_backup_indisponivel() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="O arquivo de backup desta matriz não está disponível para download.",
+    )
+
+
+@router.get(
+    "/matrizes/{matriz_id}/download",
+    summary="Baixar matriz original",
+    responses={404: {"description": "Matriz ou arquivo de backup não encontrado."}},
+)
 async def baixar_matriz(
     matriz_id: Annotated[int, Path(ge=1)],
     session: DbSession,
@@ -35,10 +46,7 @@ async def baixar_matriz(
     except ClientError as error:
         error_code = error.response.get("Error", {}).get("Code")
         if error_code in {"404", "NoSuchKey", "NotFound"}:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Arquivo não encontrado no armazenamento.",
-            ) from error
+            raise _arquivo_backup_indisponivel() from error
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Não foi possível acessar o armazenamento.",

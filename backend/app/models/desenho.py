@@ -22,6 +22,7 @@ class Desenho(Base):
     descricao: Mapped[str | None] = mapped_column(Text)
     imagem_preview_chave: Mapped[str | None] = mapped_column(String(512))
     favorito: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    excluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

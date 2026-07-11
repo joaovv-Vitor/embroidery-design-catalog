@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.api.routes.v1.desenhos import listar_desenhos
+from app.api.routes.v1.catalogo import pesquisar_desenhos
 from app.main import app
 
 
@@ -28,25 +28,35 @@ class _Session:
         self.query = query
         return _Result(self._desenhos)
 
+    async def scalar(self, _query: object) -> int:
+        return len(self._desenhos)
+
 
 @pytest.mark.asyncio
 async def test_list_drawings_filters_by_favorite() -> None:
     session = _Session(
         [
-            SimpleNamespace(id=1, nome="Flor", categoria_id=None, favorito=True),
+            SimpleNamespace(
+                id=1,
+                nome="Flor",
+                categoria_id=None,
+                favorito=True,
+                categoria=None,
+                imagem_preview_chave=None,
+            ),
         ]
     )
 
-    response = await listar_desenhos(session=session, favorito=True)
+    response = await pesquisar_desenhos(session=session, favorito=True)
 
-    assert response[0].favorito is True
+    assert response.itens[0].favorito is True
     assert session.query is not None
     assert "desenhos.favorito IS true" in str(session.query)
 
 
 def test_favorite_routes_are_documented() -> None:
     schema = app.openapi()
-    drawings_path = schema["paths"]["/api/v1/desenhos"]
+    drawings_path = schema["paths"]["/api/v1/catalogo/desenhos"]
 
     parameters = drawings_path["get"]["parameters"]
     assert any(parameter["name"] == "favorito" for parameter in parameters)

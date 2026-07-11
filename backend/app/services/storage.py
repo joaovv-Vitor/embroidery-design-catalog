@@ -1,3 +1,5 @@
+import asyncio
+from collections.abc import AsyncIterator
 from pathlib import Path
 from uuid import uuid4
 
@@ -49,6 +51,19 @@ class ObjectStorage:
 
     def get_object(self, key: str):
         return self.client.get_object(Bucket=self.settings.s3_bucket, Key=key)
+
+    async def open_object_stream(self, key: str) -> tuple[str | None, AsyncIterator[bytes]]:
+        response = await asyncio.to_thread(self.get_object, key)
+        body = response["Body"]
+
+        async def stream() -> AsyncIterator[bytes]:
+            try:
+                while chunk := await asyncio.to_thread(body.read, 1024 * 1024):
+                    yield chunk
+            finally:
+                await asyncio.to_thread(body.close)
+
+        return response.get("ContentType"), stream()
 
     def _upload(self, file_path: Path, key: str, content_type: str) -> None:
         self.client.upload_file(

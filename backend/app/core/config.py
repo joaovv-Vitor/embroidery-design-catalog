@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -18,6 +19,7 @@ class Settings(BaseSettings):
     s3_bucket: str = "matrizes-bordado"
     s3_region: str = "us-east-1"
     max_upload_size_bytes: int = 50 * 1024 * 1024
+    trash_retention_days: int = Field(default=30, ge=1)
 
 
 @lru_cache

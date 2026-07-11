@@ -1,0 +1,3 @@
+import { api } from './api'
+import type { ImportacaoArquivo } from '@/types/api'
+export const importService={async single(file:File,data:{caminho_relativo?:string;identificacao_origem?:string},onProgress:(n:number)=>void){const form=new FormData();form.append('arquivo',file);if(data.caminho_relativo)form.append('caminho_relativo',data.caminho_relativo);if(data.identificacao_origem)form.append('identificacao_origem',data.identificacao_origem);return (await api.post<ImportacaoArquivo>('/importacoes/arquivo',form,{onUploadProgress:e=>onProgress(e.total?Math.round(e.loaded/e.total*100):0)})).data}}

@@ -10,7 +10,7 @@ class DesenhoResumoResponse(BaseModel):
 
 class AtualizarDesenhoRequest(BaseModel):
     nome: str | None = Field(default=None, max_length=255)
-    categoria_id: int | None = None
+    categoria_id: int | None = Field(default=None, ge=1)
 
 
 class AtualizarFavoritoRequest(BaseModel):

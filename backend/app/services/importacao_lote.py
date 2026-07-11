@@ -147,7 +147,7 @@ class ImportacaoLoteService:
             item.quantidade_cores,
         }:
             raise ImportacaoArquivoError("Resultado da importação incompleto.")
-        return resultado, item
+        return resultado, item # pyright: ignore[reportReturnType]
 
     async def _create_importacao(
         self,

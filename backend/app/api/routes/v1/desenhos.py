@@ -1,19 +1,28 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import DbSession
-from app.models import Desenho
+from app.models import Categoria, Desenho
 from app.schemas.desenho import AtualizarDesenhoRequest, AtualizarFavoritoRequest, DesenhoResumoResponse
 
 router = APIRouter(prefix="/desenhos", tags=["desenhos"])
 
 
 @router.get("")
-async def listar_desenhos(session: DbSession) -> list[DesenhoResumoResponse]:
+async def listar_desenhos(
+    session: DbSession,
+    favorito: Annotated[
+        bool | None,
+        Query(description="Filtra desenhos pelo estado de favorito."),
+    ] = None,
+) -> list[DesenhoResumoResponse]:
     query = select(Desenho).options(selectinload(Desenho.categoria))
+    if favorito is not None:
+        query = query.where(Desenho.favorito.is_(favorito))
+
     desenhos = (await session.execute(query)).scalars().all()
     return [
         DesenhoResumoResponse(
@@ -56,6 +65,9 @@ async def atualizar_desenho(
     if "nome" in valores:
         desenho.nome = valores["nome"]
     if "categoria_id" in valores:
+        categoria_id = valores["categoria_id"]
+        if categoria_id is not None and await session.get(Categoria, categoria_id) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada.")
         desenho.categoria_id = valores["categoria_id"]
 
     await session.commit()

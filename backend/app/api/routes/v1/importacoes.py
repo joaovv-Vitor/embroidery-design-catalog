@@ -54,7 +54,7 @@ def _to_lote_response(result: ResultadoImportacaoLote) -> ImportacaoLoteResponse
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/lote", status_code=status.HTTP_201_CREATED)
 async def importar_lote(
     arquivos: Annotated[list[UploadFile], File(description="Arquivos .PES a serem importados")],
     session: DbSession,

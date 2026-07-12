@@ -6,4 +6,6 @@ export interface MatrizVariacao { id:number; formato:string; rotulo_tamanho:stri
 export interface DesenhoDetalhe extends DesenhoCard { categoria_id:number|null; descricao:string|null; matrizes:MatrizVariacao[] }
 export interface DesenhoResumo { id:number; nome:string; categoria_id:number|null; favorito:boolean }
 export interface ImportacaoArquivo { importacao_id:number; item_importacao_id:number; desenho_id:number; matriz_id:number; nome:string; largura_mm:number; altura_mm:number; quantidade_pontos:number; quantidade_cores:number }
+export interface ItemImportacaoLote { id:number; nome_arquivo:string; caminho_relativo:string|null; status:string; matriz_id:number|null; motivo_falha:string|null }
+export interface ImportacaoLote { id:number; nome_lote:string; status:string; total_arquivos:number; arquivos_importados:number; arquivos_com_falha:number; iniciado_em:string; finalizado_em:string|null; itens:ItemImportacaoLote[] }
 export interface ApiErrorBody { detail?: string | Array<{msg:string}> }

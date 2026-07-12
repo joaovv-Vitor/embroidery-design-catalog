@@ -97,16 +97,24 @@ function toggleFavoritesFilter(): void {
 
 async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<void> {
   const previousValue = design.favorito
-  design.favorito = !previousValue
+  const newValue = !previousValue
+  const catalogCard = items.value.find((item) => item.id === design.id)
+  const openDetail = detail.value?.id === design.id ? detail.value : null
+
+  design.favorito = newValue
+  if (catalogCard) catalogCard.favorito = newValue
+  if (openDetail) openDetail.favorito = newValue
 
   try {
-    await catalogService.favorite(design.id, !previousValue)
+    await catalogService.favorite(design.id, newValue)
     if (favoritesOnly.value && previousValue) {
       items.value = items.value.filter((item) => item.id !== design.id)
       total.value = Math.max(0, total.value - 1)
     }
   } catch {
     design.favorito = previousValue
+    if (catalogCard) catalogCard.favorito = previousValue
+    if (openDetail) openDetail.favorito = previousValue
   }
 }
 

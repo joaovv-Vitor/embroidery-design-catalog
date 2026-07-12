@@ -95,12 +95,16 @@ class ImportacaoLoteService:
             nome_lote,
             caminhos_relativos,
         )
+        importacao_id = importacao.id
         resultados: list[ItemImportado] = []
 
         for index, arquivo in enumerate(arquivos):
             caminho_relativo = caminhos_relativos[index] if caminhos_relativos else None
-            resultados.append(await self._importar_arquivo(session, importacao, origem_id, arquivo, caminho_relativo))
+            resultados.append(
+                await self._importar_arquivo(session, importacao_id, origem_id, arquivo, caminho_relativo)
+            )
 
+        await session.refresh(importacao)
         importacao.arquivos_importados = sum(item.status == "importado" for item in resultados)
         importacao.arquivos_com_falha = sum(item.status == "falha" for item in resultados)
         importacao.status = "concluida"
@@ -181,7 +185,7 @@ class ImportacaoLoteService:
     async def _importar_arquivo(
         self,
         session: AsyncSession,
-        importacao: Importacao,
+        importacao_id: int,
         origem_id: int | None,
         arquivo: UploadFile,
         caminho_relativo: str | None,
@@ -205,7 +209,7 @@ class ImportacaoLoteService:
 
                 return await self._persist_success(
                     session,
-                    importacao,
+                    importacao_id,
                     origem_id,
                     nome_arquivo,
                     caminho_relativo,
@@ -225,12 +229,12 @@ class ImportacaoLoteService:
             reason = "Não foi possível processar este arquivo."
 
         await self._delete_uploaded_files(uploaded_keys)
-        return await self._persist_failure(session, importacao, nome_arquivo, caminho_relativo, reason)
+        return await self._persist_failure(session, importacao_id, nome_arquivo, caminho_relativo, reason)
 
     async def _persist_success(
         self,
         session: AsyncSession,
-        importacao: Importacao,
+        importacao_id: int,
         origem_id: int | None,
         nome_arquivo: str,
         caminho_relativo: str | None,
@@ -262,7 +266,7 @@ class ImportacaoLoteService:
             quantidade_pontos=metadata.quantidade_pontos,
         )
         item = ItemImportacao(
-            importacao_id=importacao.id,
+            importacao_id=importacao_id,
             matriz=matriz,
             nome_arquivo=nome_arquivo,
             caminho_relativo=caminho_relativo,
@@ -294,13 +298,13 @@ class ImportacaoLoteService:
     async def _persist_failure(
         self,
         session: AsyncSession,
-        importacao: Importacao,
+        importacao_id: int,
         nome_arquivo: str,
         caminho_relativo: str | None,
         reason: str,
     ) -> ItemImportado:
         item = ItemImportacao(
-            importacao_id=importacao.id,
+            importacao_id=importacao_id,
             nome_arquivo=nome_arquivo,
             caminho_relativo=caminho_relativo,
             status="falha",

@@ -5,7 +5,10 @@ import { Download, ImageOff, MapPin, Pencil, Star, X } from 'lucide-vue-next'
 import { apiAssetUrl } from '@/services/api'
 import type { DesenhoDetalhe } from '@/types/api'
 
-const props = defineProps<{ design: DesenhoDetalhe }>()
+const props = defineProps<{
+  design: DesenhoDetalhe
+  favoriteLoading?: boolean
+}>()
 const emit = defineEmits<{
   close: []
   edit: []
@@ -75,6 +78,8 @@ onBeforeUnmount(() => {
             type="button"
             class="mt-4 inline-flex items-center gap-2 rounded-full border border-line px-3 py-2 text-sm font-medium transition hover:bg-cream"
             :aria-label="design.favorito ? 'Remover desenho dos favoritos' : 'Adicionar desenho aos favoritos'"
+            :aria-pressed="design.favorito"
+            :disabled="favoriteLoading"
             @click="emit('favorite', design)"
           >
             <Star :size="19" :class="design.favorito ? 'fill-gold text-gold' : 'text-muted'" />

@@ -25,8 +25,11 @@ const favoritesOnly = ref(false)
 const detail = ref<DesenhoDetalhe | null>(null)
 const detailLoading = ref(false)
 const editingDetail = ref(false)
+const favoritePendingIds = ref<Set<number>>(new Set())
+const favoriteFeedback = ref('')
 
 let searchTimer: number | undefined
+let feedbackTimer: number | undefined
 let latestRequest = 0
 
 const visibleItems = computed(() => {
@@ -98,10 +101,15 @@ function toggleFavoritesFilter(): void {
 }
 
 async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<void> {
+  if (favoritePendingIds.value.has(design.id)) return
+
   const previousValue = design.favorito
   const newValue = !previousValue
   const catalogCard = items.value.find((item) => item.id === design.id)
   const openDetail = detail.value?.id === design.id ? detail.value : null
+
+  favoritePendingIds.value = new Set(favoritePendingIds.value).add(design.id)
+  favoriteFeedback.value = ''
 
   design.favorito = newValue
   if (catalogCard) catalogCard.favorito = newValue
@@ -113,11 +121,25 @@ async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<voi
       items.value = items.value.filter((item) => item.id !== design.id)
       total.value = Math.max(0, total.value - 1)
     }
-  } catch {
+    showFavoriteFeedback(newValue ? 'Desenho adicionado aos favoritos.' : 'Desenho removido dos favoritos.')
+  } catch (requestError) {
     design.favorito = previousValue
     if (catalogCard) catalogCard.favorito = previousValue
     if (openDetail) openDetail.favorito = previousValue
+    showFavoriteFeedback(apiErrorMessage(requestError, 'Não foi possível atualizar o favorito.'))
+  } finally {
+    const pendingIds = new Set(favoritePendingIds.value)
+    pendingIds.delete(design.id)
+    favoritePendingIds.value = pendingIds
   }
+}
+
+function showFavoriteFeedback(message: string): void {
+  window.clearTimeout(feedbackTimer)
+  favoriteFeedback.value = message
+  feedbackTimer = window.setTimeout(() => {
+    favoriteFeedback.value = ''
+  }, 3000)
 }
 
 async function openDetail(id: number): Promise<void> {
@@ -152,7 +174,10 @@ onMounted(() => {
   loadCategories()
 })
 
-onBeforeUnmount(() => window.clearTimeout(searchTimer))
+onBeforeUnmount(() => {
+  window.clearTimeout(searchTimer)
+  window.clearTimeout(feedbackTimer)
+})
 </script>
 
 <template>
@@ -226,6 +251,7 @@ onBeforeUnmount(() => window.clearTimeout(searchTimer))
           'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition',
           favoritesOnly ? 'bg-gold text-white' : 'border border-line bg-white text-muted',
         ]"
+        :aria-pressed="favoritesOnly"
         @click="toggleFavoritesFilter"
       >
         <Star :size="16" :class="favoritesOnly ? 'fill-white' : ''" />
@@ -273,6 +299,7 @@ onBeforeUnmount(() => window.clearTimeout(searchTimer))
         v-for="design in visibleItems"
         :key="design.id"
         :design="design"
+        :favorite-loading="favoritePendingIds.has(design.id)"
         @open="openDetail"
         @favorite="toggleFavorite"
       />
@@ -288,6 +315,7 @@ onBeforeUnmount(() => window.clearTimeout(searchTimer))
   <DesignModal
     v-if="detail && !editingDetail"
     :design="detail"
+    :favorite-loading="favoritePendingIds.has(detail.id)"
     @close="closeDetail"
     @edit="editingDetail = true"
     @favorite="toggleFavorite"
@@ -299,4 +327,13 @@ onBeforeUnmount(() => window.clearTimeout(searchTimer))
     @close="editingDetail = false"
     @saved="handleEditSaved"
   />
+
+  <div
+    v-if="favoriteFeedback"
+    class="fixed bottom-5 right-5 z-[80] max-w-sm rounded-xl bg-purple px-4 py-3 text-sm font-medium text-white shadow-soft"
+    role="status"
+    aria-live="polite"
+  >
+    {{ favoriteFeedback }}
+  </div>
 </template>

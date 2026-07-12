@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AlertCircle, Clock3, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
+import { AlertCircle, Clock3, ImageOff, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
 
 import RemovalConfirmModal from '@/components/catalog/RemovalConfirmModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
+import { apiAssetUrl } from '@/services/api'
 import { catalogService } from '@/services/catalogService'
 import type { DesenhoLixeira } from '@/types/api'
 
@@ -114,19 +115,30 @@ onMounted(loadTrash)
       <article
         v-for="item in items"
         :key="item.id"
-        class="flex flex-col justify-between gap-5 rounded-2xl border border-line bg-white p-5 shadow-sm sm:flex-row sm:items-center"
+        class="flex flex-col justify-between gap-5 overflow-hidden rounded-2xl border border-line bg-white p-4 shadow-sm sm:flex-row sm:items-center"
       >
-        <div class="min-w-0">
-          <h2 class="truncate font-semibold text-purple">{{ item.nome }}</h2>
-          <p class="mt-2 flex items-center gap-2 text-xs text-muted">
-            <Clock3 :size="15" />
-            Removido em {{ formatDate(item.excluido_em) }}
-          </p>
-          <p :class="['mt-1 text-xs', recoveryExpired(item) ? 'text-red-600' : 'text-sage']">
-            {{ recoveryExpired(item)
-              ? 'O prazo de recuperação expirou.'
-              : `Pode ser recuperado até ${formatDate(item.recuperavel_ate)}.` }}
-          </p>
+        <div class="flex min-w-0 items-center gap-4">
+          <div class="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-cream p-2">
+            <img
+              v-if="item.preview_url"
+              :src="apiAssetUrl(item.preview_url)!"
+              :alt="`Preview de ${item.nome}`"
+              class="h-full w-full object-contain opacity-80 grayscale-[20%]"
+            />
+            <ImageOff v-else :size="28" class="text-muted" />
+          </div>
+          <div class="min-w-0">
+            <h2 class="truncate font-semibold text-purple">{{ item.nome }}</h2>
+            <p class="mt-2 flex items-center gap-2 text-xs text-muted">
+              <Clock3 :size="15" />
+              Removido em {{ formatDate(item.excluido_em) }}
+            </p>
+            <p :class="['mt-1 text-xs', recoveryExpired(item) ? 'text-red-600' : 'text-sage']">
+              {{ recoveryExpired(item)
+                ? 'O prazo de recuperação expirou.'
+                : `Pode ser recuperado até ${formatDate(item.recuperavel_ate)}.` }}
+            </p>
+          </div>
         </div>
 
         <div class="flex flex-wrap gap-2">

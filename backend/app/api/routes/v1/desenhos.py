@@ -38,6 +38,17 @@ def _resumo_desenho(desenho: Desenho) -> DesenhoResumoResponse:
     )
 
 
+def _lixeira_desenho(desenho: Desenho) -> DesenhoLixeiraResponse:
+    return DesenhoLixeiraResponse(
+        id=desenho.id,
+        nome=desenho.nome,
+        preview_url=f"/api/v1/desenhos/lixeira/{desenho.id}/preview" if desenho.imagem_preview_chave else None,
+        excluido_em=desenho.excluido_em,
+        recuperavel_ate=_recuperavel_ate(desenho.excluido_em),
+        aviso="A remoção não altera cópias físicas em pendrives ou computadores.",
+    )
+
+
 def _categoria_detalhe(desenho: Desenho) -> CategoriaDetalheResponse | None:
     if desenho.categoria is None:
         return None
@@ -93,16 +104,28 @@ async def _obter_desenho_ativo(desenho_id: int, session: DbSession) -> Desenho:
 async def listar_lixeira(session: DbSession) -> list[DesenhoLixeiraResponse]:
     query = select(Desenho).where(Desenho.excluido_em.is_not(None)).order_by(Desenho.excluido_em.desc())
     desenhos = (await session.execute(query)).scalars().all()
-    return [
-        DesenhoLixeiraResponse(
-            id=desenho.id,
-            nome=desenho.nome,
-            excluido_em=desenho.excluido_em,
-            recuperavel_ate=_recuperavel_ate(desenho.excluido_em),
-            aviso="A remoção não altera cópias físicas em pendrives ou computadores.",
-        )
-        for desenho in desenhos
-    ]
+    return [_lixeira_desenho(desenho) for desenho in desenhos]
+
+
+@router.get("/lixeira/{desenho_id}/preview")
+async def visualizar_preview_lixeira(
+    desenho_id: Annotated[int, Path(ge=1)],
+    session: DbSession,
+) -> StreamingResponse:
+    desenho = await session.scalar(
+        select(Desenho).where(Desenho.id == desenho_id, Desenho.excluido_em.is_not(None))
+    )
+    if desenho is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Desenho na lixeira não encontrado.")
+    if desenho.imagem_preview_chave is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview não disponível para este desenho.")
+
+    try:
+        content_type, content = await ObjectStorage().open_object_stream(desenho.imagem_preview_chave)
+    except ClientError as error:
+        raise _storage_http_exception(error) from error
+
+    return StreamingResponse(content, media_type=content_type or "image/png")
 
 
 @router.get("/{desenho_id}/preview")
@@ -185,13 +208,7 @@ async def mover_desenho_para_lixeira(
     desenho.excluido_em = datetime.now(timezone.utc)
     await session.commit()
 
-    return DesenhoLixeiraResponse(
-        id=desenho.id,
-        nome=desenho.nome,
-        excluido_em=desenho.excluido_em,
-        recuperavel_ate=_recuperavel_ate(desenho.excluido_em),
-        aviso="A remoção não altera cópias físicas em pendrives ou computadores.",
-    )
+    return _lixeira_desenho(desenho)
 
 
 @router.post("/{desenho_id}/restaurar")

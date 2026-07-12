@@ -11,6 +11,7 @@ class ConfirmarRemocaoRequest(BaseModel):
 class DesenhoLixeiraResponse(BaseModel):
     id: int
     nome: str
+    preview_url: str | None
     excluido_em: datetime
     recuperavel_ate: datetime
     aviso: str

@@ -4,12 +4,12 @@ from urllib.parse import quote
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Path, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import DbSession
-from app.models import Desenho, Matriz
-from app.schemas.matriz import AtualizarMatrizRequest
+from app.models import Desenho, Matriz, OrigemImportacao
+from app.schemas.matriz import AtualizarMatrizRequest, MatrizAtualizadaResponse
 from app.services.storage import ObjectStorage
 
 router = APIRouter(tags=["matrizes"])
@@ -66,21 +66,41 @@ async def atualizar_matriz(
     matriz_id: Annotated[int, Path(ge=1)],
     dados: AtualizarMatrizRequest,
     session: DbSession,
-) -> dict[str, int | str | None]:
-    query = select(Matriz).where(Matriz.id == matriz_id)
+) -> MatrizAtualizadaResponse:
+    query = select(Matriz).options(selectinload(Matriz.origem_importacao)).where(Matriz.id == matriz_id)
     matriz = (await session.execute(query)).scalar_one_or_none()
     if matriz is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matriz não encontrada.")
 
     valores = dados.model_dump(exclude_unset=True)
     if "origem_importacao_id" in valores:
-        matriz.origem_importacao_id = valores["origem_importacao_id"]
+        origem_id = valores["origem_importacao_id"]
+        if origem_id is not None and await session.get(OrigemImportacao, origem_id) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Origem não encontrada.")
+        matriz.origem_importacao_id = origem_id
+    if "identificacao_origem" in valores:
+        identificacao = valores["identificacao_origem"]
+        if identificacao is None:
+            matriz.origem_importacao = None
+        elif matriz.origem_importacao is None:
+            matriz.origem_importacao = OrigemImportacao(identificacao=identificacao, tipo="manual")
+        elif matriz.origem_importacao.identificacao != identificacao:
+            total_vinculos = await session.scalar(
+                select(func.count(Matriz.id)).where(
+                    Matriz.origem_importacao_id == matriz.origem_importacao_id
+                )
+            )
+            if (total_vinculos or 0) > 1:
+                matriz.origem_importacao = OrigemImportacao(identificacao=identificacao, tipo="manual")
+            else:
+                matriz.origem_importacao.identificacao = identificacao
     if "caminho_relativo_origem" in valores:
         matriz.caminho_relativo_origem = valores["caminho_relativo_origem"]
 
     await session.commit()
-    return {
-        "id": matriz.id,
-        "origem_importacao_id": matriz.origem_importacao_id,
-        "caminho_relativo_origem": matriz.caminho_relativo_origem,
-    }
+    return MatrizAtualizadaResponse(
+        id=matriz.id,
+        origem_importacao_id=matriz.origem_importacao_id,
+        identificacao_origem=matriz.origem_importacao.identificacao if matriz.origem_importacao else None,
+        caminho_relativo_origem=matriz.caminho_relativo_origem,
+    )

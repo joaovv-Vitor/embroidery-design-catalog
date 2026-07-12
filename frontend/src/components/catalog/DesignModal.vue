@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue'
-import { Download, ImageOff, MapPin, Star, X } from 'lucide-vue-next'
+import { Download, ImageOff, MapPin, Pencil, Star, X } from 'lucide-vue-next'
 
 import { apiAssetUrl } from '@/services/api'
 import type { DesenhoDetalhe } from '@/types/api'
@@ -8,6 +8,7 @@ import type { DesenhoDetalhe } from '@/types/api'
 const props = defineProps<{ design: DesenhoDetalhe }>()
 const emit = defineEmits<{
   close: []
+  edit: []
   favorite: [design: DesenhoDetalhe]
 }>()
 
@@ -78,6 +79,14 @@ onBeforeUnmount(() => {
           >
             <Star :size="19" :class="design.favorito ? 'fill-gold text-gold' : 'text-muted'" />
             {{ design.favorito ? 'Favorito' : 'Favoritar' }}
+          </button>
+          <button
+            type="button"
+            class="ml-2 mt-4 inline-flex items-center gap-2 rounded-full border border-line px-3 py-2 text-sm font-medium transition hover:bg-cream"
+            @click="emit('edit')"
+          >
+            <Pencil :size="17" />
+            Editar
           </button>
         </div>
 

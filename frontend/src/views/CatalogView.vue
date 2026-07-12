@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { FolderOpen, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
 
 import DesignCard from '@/components/catalog/DesignCard.vue'
+import DesignEditModal from '@/components/catalog/DesignEditModal.vue'
 import DesignModal from '@/components/catalog/DesignModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
@@ -23,6 +24,7 @@ const selectedCategory = ref<number | null>(null)
 const favoritesOnly = ref(false)
 const detail = ref<DesenhoDetalhe | null>(null)
 const detailLoading = ref(false)
+const editingDetail = ref(false)
 
 let searchTimer: number | undefined
 let latestRequest = 0
@@ -120,6 +122,7 @@ async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<voi
 
 async function openDetail(id: number): Promise<void> {
   detailLoading.value = true
+  editingDetail.value = false
   try {
     detail.value = await catalogService.detail(id)
   } catch (detailError) {
@@ -127,6 +130,18 @@ async function openDetail(id: number): Promise<void> {
   } finally {
     detailLoading.value = false
   }
+}
+
+function closeDetail(): void {
+  editingDetail.value = false
+  detail.value = null
+}
+
+async function handleEditSaved(): Promise<void> {
+  if (!detail.value) return
+  const designId = detail.value.id
+  editingDetail.value = false
+  await Promise.all([openDetail(designId), loadCatalog()])
 }
 
 watch(query, scheduleSearch)
@@ -271,9 +286,17 @@ onBeforeUnmount(() => window.clearTimeout(searchTimer))
     <LoadingSpinner />
   </div>
   <DesignModal
-    v-if="detail"
+    v-if="detail && !editingDetail"
     :design="detail"
-    @close="detail = null"
+    @close="closeDetail"
+    @edit="editingDetail = true"
     @favorite="toggleFavorite"
+  />
+  <DesignEditModal
+    v-if="detail && editingDetail"
+    :design="detail"
+    :categories="categories"
+    @close="editingDetail = false"
+    @saved="handleEditSaved"
   />
 </template>

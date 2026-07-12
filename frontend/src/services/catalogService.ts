@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 import { api } from './api'
 import type {
   CatalogoResponse,
@@ -28,6 +30,34 @@ interface CategoryData {
   nome: string
   cor?: string | null
   icone?: string | null
+}
+
+interface MatrixDownload {
+  blob: Blob
+  filename: string
+}
+
+function downloadEndpoint(downloadUrl: string): string {
+  const path = /^https?:\/\//.test(downloadUrl) ? new URL(downloadUrl).pathname : downloadUrl
+  return path.replace(/^\/api\/v1/, '')
+}
+
+function downloadFilename(contentDisposition: string | undefined): string {
+  const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  if (!encodedFilename) return 'matriz.PES'
+  return decodeURIComponent(encodedFilename)
+}
+
+async function normalizeBlobError(error: unknown): Promise<never> {
+  if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+    try {
+      const body = JSON.parse(await error.response.data.text()) as { detail?: string }
+      if (body.detail) throw new Error(body.detail)
+    } catch (parseError) {
+      if (!(parseError instanceof SyntaxError)) throw parseError
+    }
+  }
+  throw error
 }
 
 export const catalogService = {
@@ -65,6 +95,20 @@ export const catalogService = {
 
   async updateMatrix(id: number, data: UpdateMatrixData): Promise<MatrizAtualizada> {
     return (await api.patch<MatrizAtualizada>(`/matrizes/${id}`, data)).data
+  },
+
+  async downloadMatrix(downloadUrl: string): Promise<MatrixDownload> {
+    try {
+      const response = await api.get<Blob>(downloadEndpoint(downloadUrl), {
+        responseType: 'blob',
+      })
+      return {
+        blob: response.data,
+        filename: downloadFilename(response.headers['content-disposition']),
+      }
+    } catch (error) {
+      return normalizeBlobError(error)
+    }
   },
 
   async categorize(id: number, categoria_id: number): Promise<DesenhoResumo> {

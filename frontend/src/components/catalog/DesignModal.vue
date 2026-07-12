@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue'
-import { Download, ImageOff, MapPin, Pencil, Star, X } from 'lucide-vue-next'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Star, X } from 'lucide-vue-next'
 
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import { apiErrorMessage } from '@/composables/useApiError'
 import { apiAssetUrl } from '@/services/api'
-import type { DesenhoDetalhe } from '@/types/api'
+import { catalogService } from '@/services/catalogService'
+import type { DesenhoDetalhe, MatrizVariacao } from '@/types/api'
 
 const props = defineProps<{
   design: DesenhoDetalhe
@@ -18,10 +21,39 @@ const emit = defineEmits<{
 const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
 const pointsFormatter = new Intl.NumberFormat('pt-BR')
 const titleId = `design-detail-title-${props.design.id}`
+const downloadingId = ref<number | null>(null)
+const downloadError = ref('')
+const downloadSuccess = ref('')
 let previousBodyOverflow = ''
 
 function closeOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') emit('close')
+}
+
+async function downloadMatrix(matrix: MatrizVariacao): Promise<void> {
+  downloadingId.value = matrix.id
+  downloadError.value = ''
+  downloadSuccess.value = ''
+
+  try {
+    const download = await catalogService.downloadMatrix(matrix.download_url)
+    const objectUrl = URL.createObjectURL(download.blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = download.filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    downloadSuccess.value = `${download.filename} preparado para download.`
+  } catch (error) {
+    downloadError.value = apiErrorMessage(
+      error,
+      'O arquivo de backup desta matriz não está disponível para download.',
+    )
+  } finally {
+    downloadingId.value = null
+  }
 }
 
 onMounted(() => {
@@ -114,6 +146,23 @@ onBeforeUnmount(() => {
           </span>
         </div>
 
+        <div
+          v-if="downloadError"
+          class="mb-4 flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700"
+          role="alert"
+        >
+          <AlertCircle :size="18" class="shrink-0" />
+          {{ downloadError }}
+        </div>
+        <div
+          v-if="downloadSuccess"
+          class="mb-4 flex gap-2 rounded-xl bg-green-50 p-3 text-sm text-green-700"
+          role="status"
+        >
+          <CheckCircle2 :size="18" class="shrink-0" />
+          {{ downloadSuccess }}
+        </div>
+
         <div class="space-y-4">
           <article
             v-for="item in design.matrizes"
@@ -152,13 +201,16 @@ onBeforeUnmount(() => {
                 </dl>
               </div>
 
-              <a
-                :href="apiAssetUrl(item.download_url)!"
+              <button
+                type="button"
                 class="primary-button w-full shrink-0 !px-3 !py-2 text-sm sm:w-auto"
+                :disabled="downloadingId !== null"
+                @click="downloadMatrix(item)"
               >
-                <Download :size="17" />
-                Baixar .PES
-              </a>
+                <LoadingSpinner v-if="downloadingId === item.id" />
+                <Download v-else :size="17" />
+                {{ downloadingId === item.id ? 'Baixando…' : 'Baixar .PES' }}
+              </button>
             </div>
 
             <div

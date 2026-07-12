@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     max_upload_size_bytes: int = 50 * 1024 * 1024
     trash_retention_days: int = Field(default=30, ge=1)
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+    )
 
 
 @lru_cache

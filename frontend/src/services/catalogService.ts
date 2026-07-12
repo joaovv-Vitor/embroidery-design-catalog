@@ -24,6 +24,12 @@ interface UpdateMatrixData {
   caminho_relativo_origem?: string | null
 }
 
+interface CategoryData {
+  nome: string
+  cor?: string | null
+  icone?: string | null
+}
+
 export const catalogService = {
   async list(params: CatalogParams): Promise<CatalogoResponse> {
     return (await api.get<CatalogoResponse>('/catalogo/desenhos', { params })).data
@@ -31,6 +37,18 @@ export const catalogService = {
 
   async categories(): Promise<Categoria[]> {
     return (await api.get<Categoria[]>('/categorias')).data
+  },
+
+  async createCategory(data: CategoryData): Promise<Categoria> {
+    return (await api.post<Categoria>('/categorias', data)).data
+  },
+
+  async updateCategory(id: number, data: Partial<CategoryData>): Promise<Categoria> {
+    return (await api.patch<Categoria>(`/categorias/${id}`, data)).data
+  },
+
+  async deleteCategory(id: number): Promise<void> {
+    await api.delete(`/categorias/${id}`)
   },
 
   async detail(id: number): Promise<DesenhoDetalhe> {

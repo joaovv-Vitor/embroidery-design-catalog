@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Star, X } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Star, Trash2, X } from 'lucide-vue-next'
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
@@ -16,6 +16,7 @@ const emit = defineEmits<{
   close: []
   edit: []
   favorite: [design: DesenhoDetalhe]
+  remove: []
 }>()
 
 const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
@@ -124,6 +125,14 @@ onBeforeUnmount(() => {
           >
             <Pencil :size="17" />
             Editar
+          </button>
+          <button
+            type="button"
+            class="ml-2 mt-4 inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            @click="emit('remove')"
+          >
+            <Trash2 :size="17" />
+            Remover
           </button>
         </div>
 

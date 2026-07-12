@@ -5,6 +5,7 @@ import type {
   CatalogoResponse,
   Categoria,
   DesenhoDetalhe,
+  DesenhoLixeira,
   DesenhoResumo,
   MatrizAtualizada,
 } from '@/types/api'
@@ -83,6 +84,22 @@ export const catalogService = {
 
   async detail(id: number): Promise<DesenhoDetalhe> {
     return (await api.get<DesenhoDetalhe>(`/desenhos/${id}`)).data
+  },
+
+  async trash(): Promise<DesenhoLixeira[]> {
+    return (await api.get<DesenhoLixeira[]>('/desenhos/lixeira')).data
+  },
+
+  async moveToTrash(id: number): Promise<DesenhoLixeira> {
+    return (await api.delete<DesenhoLixeira>(`/desenhos/${id}`, { data: { confirmar: true } })).data
+  },
+
+  async restoreDesign(id: number): Promise<DesenhoResumo> {
+    return (await api.post<DesenhoResumo>(`/desenhos/${id}/restaurar`)).data
+  },
+
+  async deleteDesignPermanently(id: number): Promise<void> {
+    await api.delete(`/desenhos/${id}/permanente`, { data: { confirmar: true } })
   },
 
   async favorite(id: number, favorito: boolean): Promise<DesenhoResumo> {

@@ -6,6 +6,7 @@ import { FolderOpen, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
 import DesignCard from '@/components/catalog/DesignCard.vue'
 import DesignEditModal from '@/components/catalog/DesignEditModal.vue'
 import DesignModal from '@/components/catalog/DesignModal.vue'
+import RemovalConfirmModal from '@/components/catalog/RemovalConfirmModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
 import { catalogService } from '@/services/catalogService'
@@ -25,6 +26,9 @@ const favoritesOnly = ref(false)
 const detail = ref<DesenhoDetalhe | null>(null)
 const detailLoading = ref(false)
 const editingDetail = ref(false)
+const confirmingRemoval = ref(false)
+const removalLoading = ref(false)
+const removalError = ref('')
 const favoritePendingIds = ref<Set<number>>(new Set())
 const favoriteFeedback = ref('')
 
@@ -156,7 +160,27 @@ async function openDetail(id: number): Promise<void> {
 
 function closeDetail(): void {
   editingDetail.value = false
+  confirmingRemoval.value = false
   detail.value = null
+}
+
+async function moveDetailToTrash(): Promise<void> {
+  if (!detail.value) return
+  removalLoading.value = true
+  removalError.value = ''
+
+  try {
+    const designId = detail.value.id
+    await catalogService.moveToTrash(designId)
+    items.value = items.value.filter((item) => item.id !== designId)
+    total.value = Math.max(0, total.value - 1)
+    closeDetail()
+    showFavoriteFeedback('Desenho movido para a lixeira.')
+  } catch (requestError) {
+    removalError.value = apiErrorMessage(requestError, 'Não foi possível mover o desenho para a lixeira.')
+  } finally {
+    removalLoading.value = false
+  }
 }
 
 async function handleEditSaved(): Promise<void> {
@@ -313,12 +337,13 @@ onBeforeUnmount(() => {
     <LoadingSpinner />
   </div>
   <DesignModal
-    v-if="detail && !editingDetail"
+    v-if="detail && !editingDetail && !confirmingRemoval"
     :design="detail"
     :favorite-loading="favoritePendingIds.has(detail.id)"
     @close="closeDetail"
     @edit="editingDetail = true"
     @favorite="toggleFavorite"
+    @remove="confirmingRemoval = true"
   />
   <DesignEditModal
     v-if="detail && editingDetail"
@@ -326,6 +351,14 @@ onBeforeUnmount(() => {
     :categories="categories"
     @close="editingDetail = false"
     @saved="handleEditSaved"
+  />
+  <RemovalConfirmModal
+    v-if="detail && confirmingRemoval"
+    :design-name="detail.nome"
+    :loading="removalLoading"
+    :error="removalError"
+    @cancel="confirmingRemoval = false"
+    @confirm="moveDetailToTrash"
   />
 
   <div

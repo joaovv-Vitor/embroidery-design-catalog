@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff, Star } from 'lucide-vue-next'
+import { Check, ImageOff, Star } from 'lucide-vue-next'
 
 import { apiAssetUrl } from '@/services/api'
 import type { DesenhoCard } from '@/types/api'
@@ -7,11 +7,14 @@ import type { DesenhoCard } from '@/types/api'
 defineProps<{
   design: DesenhoCard
   favoriteLoading?: boolean
+  selectionMode?: boolean
+  selected?: boolean
 }>()
 
 defineEmits<{
   open: [id: number]
   favorite: [design: DesenhoCard]
+  select: [design: DesenhoCard]
 }>()
 </script>
 
@@ -19,9 +22,11 @@ defineEmits<{
   <article
     class="group cursor-pointer overflow-hidden rounded-[18px] border border-line bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-soft"
     tabindex="0"
-    @click="$emit('open', design.id)"
-    @keydown.enter="$emit('open', design.id)"
-    @keydown.space.prevent="$emit('open', design.id)"
+    :class="selected ? 'ring-2 ring-terracotta ring-offset-2' : ''"
+    :aria-pressed="selectionMode ? selected : undefined"
+    @click="selectionMode ? $emit('select', design) : $emit('open', design.id)"
+    @keydown.enter="selectionMode ? $emit('select', design) : $emit('open', design.id)"
+    @keydown.space.prevent="selectionMode ? $emit('select', design) : $emit('open', design.id)"
   >
     <div class="relative aspect-square bg-cream p-5">
       <img
@@ -34,7 +39,18 @@ defineEmits<{
         <ImageOff :size="32" />
       </div>
 
+      <span
+        v-if="selectionMode"
+        :class="[
+          'absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition',
+          selected ? 'border-terracotta bg-terracotta text-white' : 'border-white bg-white/95 text-muted',
+        ]"
+        aria-hidden="true"
+      >
+        <Check v-if="selected" :size="20" />
+      </span>
       <button
+        v-else
         type="button"
         :aria-label="design.favorito ? 'Remover favorito' : 'Adicionar favorito'"
         :aria-pressed="design.favorito"

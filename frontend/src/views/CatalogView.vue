@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { FolderOpen, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
+import { FolderOpen, GalleryHorizontalEnd, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
 
 import DesignCard from '@/components/catalog/DesignCard.vue'
 import DesignEditModal from '@/components/catalog/DesignEditModal.vue'
 import DesignModal from '@/components/catalog/DesignModal.vue'
 import RemovalConfirmModal from '@/components/catalog/RemovalConfirmModal.vue'
+import ShowcaseCreateModal from '@/components/showcase/ShowcaseCreateModal.vue'
+import ShowcaseCreatedModal from '@/components/showcase/ShowcaseCreatedModal.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
 import { catalogService } from '@/services/catalogService'
-import type { Categoria, DesenhoCard, DesenhoDetalhe } from '@/types/api'
+import { showcaseService } from '@/services/showcaseService'
+import type { Categoria, DesenhoCard, DesenhoDetalhe, VitrineCriada } from '@/types/api'
+import { copyText, shareOnWhatsApp } from '@/utils/share'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -31,6 +35,13 @@ const removalLoading = ref(false)
 const removalError = ref('')
 const favoritePendingIds = ref<Set<number>>(new Set())
 const favoriteFeedback = ref('')
+const selectionMode = ref(false)
+const selected = ref<Map<number, DesenhoCard>>(new Map())
+const creatingShowcase = ref(false)
+const createModalOpen = ref(false)
+const createError = ref('')
+const createdShowcase = ref<VitrineCriada | null>(null)
+const shareFeedback = ref('')
 
 let searchTimer: number | undefined
 let feedbackTimer: number | undefined
@@ -44,6 +55,8 @@ const visibleItems = computed(() => {
 const visibleTotal = computed(() =>
   selectedCategory.value === null ? total.value : visibleItems.value.length,
 )
+
+const selectedDesigns = computed(() => Array.from(selected.value.values()))
 
 const hasActiveFilters = computed(() =>
   Boolean(query.value.trim() || favoritesOnly.value || selectedCategory.value !== null),
@@ -102,6 +115,71 @@ function selectCategory(categoryId: number): void {
 function toggleFavoritesFilter(): void {
   favoritesOnly.value = !favoritesOnly.value
   selectedCategory.value = null
+}
+
+function startSelection(): void {
+  selectionMode.value = true
+  closeDetail()
+}
+
+function cancelSelection(): void {
+  selectionMode.value = false
+  selected.value = new Map()
+  createModalOpen.value = false
+  createError.value = ''
+}
+
+function toggleSelection(design: DesenhoCard): void {
+  const next = new Map(selected.value)
+  if (next.has(design.id)) next.delete(design.id)
+  else next.set(design.id, design)
+  selected.value = next
+}
+
+function removeSelection(id: number): void {
+  const next = new Map(selected.value)
+  next.delete(id)
+  selected.value = next
+}
+
+function openCreateShowcase(): void {
+  if (!selectedDesigns.value.length) return
+  createError.value = ''
+  createModalOpen.value = true
+}
+
+async function createShowcase(data: { titulo?: string; nome_cliente?: string | null }): Promise<void> {
+  if (!selectedDesigns.value.length) return
+  creatingShowcase.value = true
+  createError.value = ''
+  try {
+    createdShowcase.value = await showcaseService.create({
+      desenho_ids: selectedDesigns.value.map((design) => design.id),
+      ...data,
+    })
+    createModalOpen.value = false
+    selectionMode.value = false
+    selected.value = new Map()
+  } catch (requestError) {
+    createError.value = apiErrorMessage(requestError, 'Não foi possível criar a vitrine.')
+  } finally {
+    creatingShowcase.value = false
+  }
+}
+
+async function copyCreatedLink(): Promise<void> {
+  if (!createdShowcase.value) return
+  try {
+    await copyText(createdShowcase.value.link_publico)
+    shareFeedback.value = 'Link copiado.'
+  } catch (copyError) {
+    shareFeedback.value = apiErrorMessage(copyError, 'Não foi possível copiar o link.')
+  }
+}
+
+function shareCreatedOnWhatsApp(): void {
+  if (!createdShowcase.value) return
+  shareOnWhatsApp(createdShowcase.value.titulo, createdShowcase.value.link_publico)
 }
 
 async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<void> {
@@ -211,10 +289,23 @@ onBeforeUnmount(() => {
         <h1 class="font-serif text-4xl text-purple md:text-5xl">Seu catálogo de bordados</h1>
         <p class="mt-2 text-muted">Encontre rapidamente a matriz que você precisa.</p>
       </div>
-      <button class="primary-button self-start" @click="router.push('/importar')">
-        <Upload :size="19" />
-        Importar matrizes
-      </button>
+      <div class="flex flex-wrap gap-3 self-start">
+        <button
+          v-if="!selectionMode"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 font-semibold text-purple shadow-sm transition hover:bg-cream"
+          @click="startSelection"
+        >
+          <GalleryHorizontalEnd :size="19" />
+          Criar vitrine
+        </button>
+        <button v-else class="rounded-xl border border-line bg-white px-5 py-3 font-semibold text-purple" @click="cancelSelection">
+          Cancelar seleção
+        </button>
+        <button class="primary-button" @click="router.push('/importar')">
+          <Upload :size="19" />
+          Importar matrizes
+        </button>
+      </div>
     </header>
 
     <div class="mt-9 flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
@@ -324,8 +415,11 @@ onBeforeUnmount(() => {
         :key="design.id"
         :design="design"
         :favorite-loading="favoritePendingIds.has(design.id)"
+        :selection-mode="selectionMode"
+        :selected="selected.has(design.id)"
         @open="openDetail"
         @favorite="toggleFavorite"
+        @select="toggleSelection"
       />
     </div>
   </section>
@@ -369,4 +463,38 @@ onBeforeUnmount(() => {
   >
     {{ favoriteFeedback }}
   </div>
+
+  <div
+    v-if="selectionMode"
+    class="fixed bottom-4 left-4 right-4 z-50 flex flex-col items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-2xl sm:flex-row md:left-[16rem] md:right-6 lg:px-6"
+    role="status"
+    aria-live="polite"
+  >
+    <div>
+      <strong class="text-purple">{{ selectedDesigns.length }}</strong>
+      <span class="ml-1 text-sm text-muted">{{ selectedDesigns.length === 1 ? 'desenho selecionado' : 'desenhos selecionados' }}</span>
+    </div>
+    <button class="primary-button w-full sm:w-auto" :disabled="!selectedDesigns.length" @click="openCreateShowcase">
+      <GalleryHorizontalEnd :size="18" />
+      Criar vitrine com {{ selectedDesigns.length }} {{ selectedDesigns.length === 1 ? 'desenho' : 'desenhos' }}
+    </button>
+  </div>
+
+  <ShowcaseCreateModal
+    v-if="createModalOpen"
+    :designs="selectedDesigns"
+    :loading="creatingShowcase"
+    :error="createError"
+    @close="createModalOpen = false"
+    @remove="removeSelection"
+    @create="createShowcase"
+  />
+  <ShowcaseCreatedModal
+    v-if="createdShowcase"
+    :showcase="createdShowcase"
+    :feedback="shareFeedback"
+    @close="createdShowcase = null; shareFeedback = ''"
+    @copy="copyCreatedLink"
+    @whatsapp="shareCreatedOnWhatsApp"
+  />
 </template>

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     s3_secret_key: str = "trocar_por_segredo"
     s3_bucket: str = "matrizes-bordado"
     s3_region: str = "us-east-1"
+    api_public_url: str = "http://localhost:8000"
+    frontend_public_url: str = "http://localhost:5173"
     max_upload_size_bytes: int = 50 * 1024 * 1024
     trash_retention_days: int = Field(default=30, ge=1)
     cors_allowed_origins: list[str] = Field(

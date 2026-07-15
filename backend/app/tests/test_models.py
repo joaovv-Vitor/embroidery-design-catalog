@@ -9,8 +9,10 @@ def test_catalog_schema_is_registered() -> None:
         "desenhos",
         "importacoes",
         "itens_importacao",
+        "itens_vitrine",
         "matrizes",
         "origens_importacao",
+        "vitrines",
     }
 
 

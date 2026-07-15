@@ -39,6 +39,13 @@ class ObjectStorage:
     def delete_object(self, key: str) -> None:
         self.client.delete_object(Bucket=self.settings.s3_bucket, Key=key)
 
+    def copy_object(self, source_key: str, destination_key: str) -> None:
+        self.client.copy_object(
+            Bucket=self.settings.s3_bucket,
+            CopySource={"Bucket": self.settings.s3_bucket, "Key": source_key},
+            Key=destination_key,
+        )
+
     def upload_design(self, file_path: Path) -> str:
         key = f"matrizes/{uuid4()}.pes"
         self._upload(file_path, key, "application/octet-stream")
@@ -64,6 +71,14 @@ class ObjectStorage:
                 await asyncio.to_thread(body.close)
 
         return response.get("ContentType"), stream()
+
+    async def object_metadata(self, key: str) -> tuple[str | None, int | None]:
+        response = await asyncio.to_thread(
+            self.client.head_object,
+            Bucket=self.settings.s3_bucket,
+            Key=key,
+        )
+        return response.get("ContentType"), response.get("ContentLength")
 
     def _upload(self, file_path: Path, key: str, content_type: str) -> None:
         self.client.upload_file(

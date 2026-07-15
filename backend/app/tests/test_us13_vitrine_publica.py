@@ -3,7 +3,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import HTTPException
 
-from app.api.routes.v1.vitrines import _obter_vitrine_valida, _vitrine_publica_response, compartilhar_vitrine
+from app.api.routes.v1.vitrines import (
+    _obter_vitrine_valida,
+    _vitrine_publica_response,
+    compartilhar_vitrine,
+    verificar_preview_vitrine,
+)
 from app.main import app
 from app.models import ItemVitrine, Vitrine
 
@@ -46,7 +51,7 @@ def test_public_showcase_routes_are_read_only_and_documented() -> None:
     status_path = paths["/api/v1/vitrines/{vitrine_id}/status"]
 
     assert set(public_path) == {"get"}
-    assert set(preview_path) == {"get"}
+    assert "get" in preview_path
     assert set(status_path) == {"patch"}
 
 
@@ -95,6 +100,9 @@ async def test_share_page_contains_open_graph_and_frontend_redirect() -> None:
     assert 'property="og:title" content="Flores para toalhas"' in html
     assert 'property="og:description"' in html
     assert 'property="og:image"' in html
+    assert 'property="og:image:secure_url"' in html
+    assert 'property="og:image:type" content="image/png"' in html
+    assert 'property="og:image:alt" content="Preview de Rosa delicada"' in html
     assert f"/vitrines/{showcase.token}" in html
 
 
@@ -107,3 +115,24 @@ async def test_share_page_explains_when_showcase_is_disabled() -> None:
     assert response.status_code == 410
     assert "Vitrine indisponível" in response.body.decode()
     assert "Esta vitrine foi desativada." in response.body.decode()
+
+
+@pytest.mark.asyncio
+async def test_preview_head_returns_image_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    showcase = _showcase()
+
+    class _Storage:
+        async def object_metadata(self, _key: str) -> tuple[str, int]:
+            return "image/png", 12345
+
+    monkeypatch.setattr("app.api.routes.v1.vitrines.ObjectStorage", _Storage)
+    response = await verificar_preview_vitrine(
+        showcase.token,
+        showcase.itens[0].token,
+        _ShowcaseSession(showcase),  # type: ignore[arg-type]
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["content-length"] == "12345"
+    assert response.headers["cache-control"] == "no-store"

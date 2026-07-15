@@ -72,6 +72,14 @@ class ObjectStorage:
 
         return response.get("ContentType"), stream()
 
+    async def object_metadata(self, key: str) -> tuple[str | None, int | None]:
+        response = await asyncio.to_thread(
+            self.client.head_object,
+            Bucket=self.settings.s3_bucket,
+            Key=key,
+        )
+        return response.get("ContentType"), response.get("ContentLength")
+
     def _upload(self, file_path: Path, key: str, content_type: str) -> None:
         self.client.upload_file(
             str(file_path),

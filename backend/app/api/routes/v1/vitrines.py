@@ -4,7 +4,7 @@ from html import escape
 from typing import Annotated
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Response, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -147,7 +147,15 @@ async def compartilhar_vitrine(
     title = escape(vitrine.titulo, quote=True)
     client_text = f" para {vitrine.nome_cliente}" if vitrine.nome_cliente else ""
     description = escape(f"Confira as opções de bordado selecionadas{client_text}.", quote=True)
-    image_meta = f'<meta property="og:image" content="{escape(preview_url, quote=True)}">' if preview_url else ""
+    image_meta = ""
+    if preview_url and preview_item is not None:
+        escaped_preview_url = escape(preview_url, quote=True)
+        escaped_image_alt = escape(f"Preview de {preview_item.nome_snapshot}", quote=True)
+        image_meta = f"""
+  <meta property="og:image" content="{escaped_preview_url}">
+  <meta property="og:image:secure_url" content="{escaped_preview_url}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="{escaped_image_alt}">"""
     html = f"""<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -171,6 +179,37 @@ async def compartilhar_vitrine(
     return HTMLResponse(html)
 
 
+def _obter_item_preview(vitrine: Vitrine, item_token: str) -> tuple[ItemVitrine, str]:
+    item = next((item for item in vitrine.itens if item.token == item_token), None)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado nesta vitrine.")
+    if item.preview_chave_snapshot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview não disponível para este item.")
+    return item, item.preview_chave_snapshot
+
+
+@router.head("/{token}/itens/{item_token}/preview", include_in_schema=False)
+async def verificar_preview_vitrine(
+    token: Annotated[str, Path(min_length=20, max_length=64)],
+    item_token: Annotated[str, Path(min_length=20, max_length=64)],
+    session: DbSession,
+) -> Response:
+    vitrine = await _obter_vitrine_valida(token, session)
+    _, preview_key = _obter_item_preview(vitrine, item_token)
+    try:
+        content_type, content_length = await ObjectStorage().object_metadata(preview_key)
+    except ClientError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Preview da vitrine não encontrada.",
+        ) from error
+
+    headers = {"Cache-Control": "no-store"}
+    if content_length is not None:
+        headers["Content-Length"] = str(content_length)
+    return Response(status_code=status.HTTP_200_OK, media_type=content_type or "image/png", headers=headers)
+
+
 @router.get("/{token}/itens/{item_token}/preview")
 async def visualizar_preview_vitrine(
     token: Annotated[str, Path(min_length=20, max_length=64)],
@@ -178,17 +217,17 @@ async def visualizar_preview_vitrine(
     session: DbSession,
 ) -> StreamingResponse:
     vitrine = await _obter_vitrine_valida(token, session)
-    item = next((item for item in vitrine.itens if item.token == item_token), None)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado nesta vitrine.")
-    if item.preview_chave_snapshot is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview não disponível para este item.")
+    _, preview_key = _obter_item_preview(vitrine, item_token)
 
     try:
-        content_type, content = await ObjectStorage().open_object_stream(item.preview_chave_snapshot)
+        content_type, content = await ObjectStorage().open_object_stream(preview_key)
     except ClientError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Preview da vitrine não encontrada.",
         ) from error
-    return StreamingResponse(content, media_type=content_type or "image/png")
+    return StreamingResponse(
+        content,
+        media_type=content_type or "image/png",
+        headers={"Cache-Control": "no-store"},
+    )

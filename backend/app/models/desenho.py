@@ -10,6 +10,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.categoria import Categoria
+    from app.models.item_vitrine import ItemVitrine
     from app.models.matriz import Matriz
 
 
@@ -30,3 +31,4 @@ class Desenho(Base):
 
     categoria: Mapped["Categoria | None"] = relationship(back_populates="desenhos")
     matrizes: Mapped[list["Matriz"]] = relationship(back_populates="desenho", cascade="all, delete-orphan")
+    itens_vitrine: Mapped[list["ItemVitrine"]] = relationship(back_populates="desenho")

@@ -14,25 +14,13 @@ import {
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
-import {
-  desktopFolderService,
-  isTauriDesktop,
-  type DesktopPesFile,
-} from '@/services/desktopFolderService'
+import { importSelectionAdapter } from '@/platform/importSelection'
 import { importService } from '@/services/importService'
 import type { ImportacaoLote, ItemImportacaoLote } from '@/types/api'
-
-interface SelectedPesFile {
-  file: File | null
-  desktopFile?: DesktopPesFile
-  name: string
-  relativePath: string
-  size: number
-  lastModified: number
-}
+import type { PesImportCandidate } from '@catalogo-bordados/shared'
 
 const router = useRouter()
-const selectedFiles = ref<SelectedPesFile[]>([])
+const selectedFiles = ref<PesImportCandidate[]>([])
 const origin = ref('')
 const batchName = ref('')
 const dragging = ref(false)
@@ -41,7 +29,7 @@ const uploadProgress = ref(0)
 const report = ref<ImportacaoLote | null>(null)
 const error = ref('')
 const ignoredFiles = ref(0)
-const desktop = isTauriDesktop()
+const desktop = importSelectionAdapter.supportsNativeDirectory
 const scanningFolder = ref(false)
 const preparingFiles = ref(false)
 const selectedFolderName = ref('')
@@ -61,30 +49,16 @@ function addFiles(fileList: FileList | File[]): void {
   report.value = null
 
   const files = Array.from(fileList)
-  const pesFiles = files.filter((file) => file.name.toLowerCase().endsWith('.pes'))
-  ignoredFiles.value += files.length - pesFiles.length
-
-  const existingKeys = new Set(
-    selectedFiles.value.map(
-      ({ relativePath, size, lastModified }) => `${relativePath}:${size}:${lastModified}`,
-    ),
-  )
-
-  for (const file of pesFiles) {
-    const relativePath = file.webkitRelativePath || file.name
-    const key = `${relativePath}:${file.size}:${file.lastModified}`
-    if (existingKeys.has(key)) continue
-    existingKeys.add(key)
-    selectedFiles.value.push({
-      file,
-      name: file.name,
-      relativePath,
-      size: file.size,
-      lastModified: file.lastModified,
-    })
+  const candidates = importSelectionAdapter.fromBrowserFiles(files)
+  ignoredFiles.value += files.length - candidates.length
+  const existingKeys = new Set(selectedFiles.value.map(({ key }) => key))
+  for (const candidate of candidates) {
+    if (existingKeys.has(candidate.key)) continue
+    existingKeys.add(candidate.key)
+    selectedFiles.value.push(candidate)
   }
 
-  if (!pesFiles.length && files.length) {
+  if (!candidates.length && files.length) {
     error.value = 'Nenhum arquivo .PES foi encontrado na seleção.'
   }
 }
@@ -96,20 +70,13 @@ async function selectDesktopFolder(): Promise<void> {
   emptySelectedFolder.value = false
 
   try {
-    const selection = await desktopFolderService.select()
+    const selection = await importSelectionAdapter.selectDirectory()
     if (!selection) return
 
     selectedFolderName.value = selection.folderName
     unreadableEntries.value = selection.unreadableEntries
     emptySelectedFolder.value = selection.files.length === 0
-    selectedFiles.value = selection.files.map((desktopFile) => ({
-      file: null,
-      desktopFile,
-      name: desktopFile.name,
-      relativePath: desktopFile.relativePath,
-      size: desktopFile.size,
-      lastModified: 0,
-    }))
+    selectedFiles.value = selection.files
   } catch (selectionError) {
     error.value = apiErrorMessage(selectionError, 'Não foi possível ler a pasta selecionada.')
   } finally {
@@ -124,7 +91,7 @@ async function clearSelection(): Promise<void> {
   emptySelectedFolder.value = false
   if (desktop) {
     try {
-      await desktopFolderService.clear()
+      await importSelectionAdapter.clearDirectory()
     } catch {
       // A seleção visual já foi cancelada; o estado nativo será substituído depois.
     }
@@ -166,11 +133,7 @@ async function submit(): Promise<void> {
 
     for (const [index, selected] of selectedFiles.value.entries()) {
       try {
-        const file = selected.file
-          ?? (selected.desktopFile
-            ? await desktopFolderService.readFile(selected.desktopFile)
-            : null)
-        if (!file) throw new Error('Arquivo indisponível')
+        const file = await selected.readFile()
         readableFiles.push(file)
         readablePaths.push(selected.relativePath)
       } catch {
@@ -409,7 +372,7 @@ function reset(): void {
         <div class="max-h-72 divide-y divide-line overflow-y-auto">
           <div
             v-for="(selected, index) in selectedFiles"
-            :key="`${selected.relativePath}-${selected.lastModified}`"
+            :key="selected.key"
             class="flex items-center gap-3 p-3"
           >
             <FileCheck2 class="shrink-0 text-sage" :size="19" />

@@ -1,1 +1,3 @@
-export { copyText, shareOnWhatsApp } from '@catalogo-bordados/shared'
+import { sharingAdapter } from '@/platform/sharing'
+
+export const { copyText, shareOnWhatsApp } = sharingAdapter

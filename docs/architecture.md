@@ -137,3 +137,18 @@ Se depender do Windows, a integração fica em `app/src/platform` ou `app/src-ta
 Se precisar ser pública, a entrada fica no `frontend`. Se for regra de negócio,
 deve ser implementada no backend e consumida pelas duas interfaces.
 
+## Verificação das fronteiras
+
+Antes de integrar alterações, execute na raiz:
+
+```bash
+npm run check
+```
+
+Além dos testes automatizados, confirme que:
+
+- `packages/shared` não importa `@tauri-apps/*`;
+- `frontend` não importa arquivos de `app`;
+- páginas públicas existem somente em `frontend`;
+- operações nativas ficam em `app/src/platform` ou `app/src-tauri`;
+- somente o `package-lock.json` da raiz é versionado.

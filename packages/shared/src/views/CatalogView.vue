@@ -19,13 +19,16 @@ import ShowcaseCreatedModal from '../components/showcase/ShowcaseCreatedModal.vu
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 
 const SEARCH_DEBOUNCE_MS = 300
+const CATALOG_PAGE_SIZE = 24
 
 const router = useRouter()
 const items = ref<DesenhoCard[]>([])
 const categories = ref<Categoria[]>([])
 const total = ref(0)
 const loading = ref(true)
+const loadingMore = ref(false)
 const error = ref('')
+const loadMoreError = ref('')
 const query = ref('')
 const selectedCategory = ref<number | null>(null)
 const favoritesOnly = ref(false)
@@ -44,6 +47,8 @@ const createModalOpen = ref(false)
 const createError = ref('')
 const createdShowcase = ref<VitrineCriada | null>(null)
 const shareFeedback = ref('')
+const page = ref(1)
+const hasMore = ref(false)
 
 let searchTimer: number | undefined
 let feedbackTimer: number | undefined
@@ -61,24 +66,58 @@ const hasActiveFilters = computed(() =>
 async function loadCatalog(): Promise<void> {
   const requestId = catalogRequestGuard.start()
   loading.value = true
+  loadingMore.value = false
   error.value = ''
+  loadMoreError.value = ''
 
   try {
     const result = await catalogStore.getCatalog({
       busca: query.value.trim() || undefined,
       categoria_id: selectedCategory.value ?? undefined,
       somente_favoritos: favoritesOnly.value || undefined,
-      por_pagina: 24,
+      pagina: 1,
+      por_pagina: CATALOG_PAGE_SIZE,
     })
 
     if (!catalogRequestGuard.isCurrent(requestId)) return
     items.value = result.itens
     total.value = result.total
+    page.value = result.pagina
+    hasMore.value = result.tem_mais
   } catch (requestError) {
     if (!catalogRequestGuard.isCurrent(requestId)) return
     error.value = apiErrorMessage(requestError, 'Não foi possível carregar seu catálogo.')
   } finally {
     if (catalogRequestGuard.isCurrent(requestId)) loading.value = false
+  }
+}
+
+async function loadMore(): Promise<void> {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+
+  const requestId = catalogRequestGuard.start()
+  loadingMore.value = true
+  loadMoreError.value = ''
+
+  try {
+    const result = await catalogStore.getCatalog({
+      busca: query.value.trim() || undefined,
+      categoria_id: selectedCategory.value ?? undefined,
+      somente_favoritos: favoritesOnly.value || undefined,
+      pagina: page.value + 1,
+      por_pagina: CATALOG_PAGE_SIZE,
+    })
+
+    if (!catalogRequestGuard.isCurrent(requestId)) return
+    const existingIds = new Set(items.value.map((item) => item.id))
+    items.value = [...items.value, ...result.itens.filter((item) => !existingIds.has(item.id))]
+    page.value = result.pagina
+    hasMore.value = result.tem_mais
+  } catch (requestError) {
+    if (!catalogRequestGuard.isCurrent(requestId)) return
+    loadMoreError.value = apiErrorMessage(requestError, 'Não foi possível carregar mais desenhos.')
+  } finally {
+    if (catalogRequestGuard.isCurrent(requestId)) loadingMore.value = false
   }
 }
 
@@ -91,6 +130,7 @@ async function loadCategories(): Promise<void> {
 }
 
 function scheduleSearch(): void {
+  catalogRequestGuard.cancel()
   window.clearTimeout(searchTimer)
   searchTimer = window.setTimeout(loadCatalog, SEARCH_DEBOUNCE_MS)
 }
@@ -200,6 +240,7 @@ async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<voi
     if (favoritesOnly.value && previousValue) {
       items.value = items.value.filter((item) => item.id !== design.id)
       total.value = Math.max(0, total.value - 1)
+      hasMore.value = items.value.length < total.value
     }
     showFavoriteFeedback(newValue ? 'Desenho adicionado aos favoritos.' : 'Desenho removido dos favoritos.')
   } catch (requestError) {
@@ -251,6 +292,7 @@ async function moveDetailToTrash(): Promise<void> {
     catalogStore.invalidateCatalog()
     items.value = items.value.filter((item) => item.id !== designId)
     total.value = Math.max(0, total.value - 1)
+    hasMore.value = items.value.length < total.value
     closeDetail()
     showFavoriteFeedback('Desenho movido para a lixeira.')
   } catch (requestError) {
@@ -422,6 +464,22 @@ onBeforeUnmount(() => {
         @favorite="toggleFavorite"
         @select="toggleSelection"
       />
+    </div>
+
+    <div v-if="!loading && visibleItems.length" class="mt-8 flex flex-col items-center gap-3">
+      <p v-if="loadMoreError" class="text-sm text-red-700" role="alert">{{ loadMoreError }}</p>
+      <button
+        v-if="hasMore"
+        type="button"
+        class="primary-button min-w-56"
+        :disabled="loadingMore"
+        @click="loadMore"
+      >
+        <LoadingSpinner v-if="loadingMore" />
+        <RefreshCw v-else :size="18" />
+        {{ loadingMore ? 'Carregando desenhos…' : 'Carregar mais desenhos' }}
+      </button>
+      <p v-else class="text-sm text-muted">Todos os desenhos foram carregados.</p>
     </div>
   </section>
 

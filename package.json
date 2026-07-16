@@ -1,0 +1,17 @@
+{
+  "name": "embroidery-design-catalog",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "app",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @catalogo-bordados/web",
+    "build:web": "npm run build --workspace @catalogo-bordados/web",
+    "dev:app": "npm run tauri --workspace @catalogo-bordados/desktop -- dev",
+    "build:app": "npm run tauri --workspace @catalogo-bordados/desktop -- build"
+  }
+}
+

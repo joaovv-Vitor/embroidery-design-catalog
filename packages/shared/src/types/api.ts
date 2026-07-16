@@ -1,7 +1,7 @@
 export interface CategoriaDetalhe { id:number; nome:string; cor:string|null; icone:string|null }
 export interface Categoria extends CategoriaDetalhe { criado_em:string }
 export interface DesenhoCard { id:number; nome:string; favorito:boolean; categoria:CategoriaDetalhe|null; preview_url:string|null }
-export interface CatalogoResponse { itens:DesenhoCard[]; total:number; pagina:number; por_pagina:number }
+export interface CatalogoResponse { itens:DesenhoCard[]; total:number; pagina:number; por_pagina:number; total_paginas:number; tem_mais:boolean }
 export interface MatrizVariacao { id:number; formato:string; rotulo_tamanho:string|null; largura_mm:number; altura_mm:number; quantidade_cores:number; quantidade_pontos:number; origem_identificacao:string|null; caminho_relativo_origem:string|null; download_url:string }
 export interface MatrizAtualizada { id:number; origem_importacao_id:number|null; identificacao_origem:string|null; caminho_relativo_origem:string|null }
 export interface DesenhoDetalhe extends DesenhoCard { categoria_id:number|null; descricao:string|null; matrizes:MatrizVariacao[] }

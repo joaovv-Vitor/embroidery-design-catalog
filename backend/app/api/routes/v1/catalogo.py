@@ -6,7 +6,13 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import DbSession
 from app.models import Categoria, Desenho
-from app.schemas.desenho import CatalogoDesenhosResponse, CategoriaDetalheResponse, DesenhoCardResponse
+from app.schemas.desenho import (
+    CATALOG_DEFAULT_PAGE_SIZE,
+    CATALOG_MAX_PAGE_SIZE,
+    CatalogoDesenhosResponse,
+    CategoriaDetalheResponse,
+    DesenhoCardResponse,
+)
 
 router = APIRouter(prefix="/catalogo", tags=["catálogo"])
 
@@ -49,7 +55,14 @@ async def pesquisar_desenhos(
         Query(description="Filtra desenhos pelo estado de favorito."),
     ] = None,
     pagina: Annotated[int, Query(ge=1, description="Página de resultados.")] = 1,
-    por_pagina: Annotated[int, Query(ge=1, le=100, description="Quantidade de cards por página.")] = 24,
+    por_pagina: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=CATALOG_MAX_PAGE_SIZE,
+            description="Quantidade de cards por página.",
+        ),
+    ] = CATALOG_DEFAULT_PAGE_SIZE,
 ) -> CatalogoDesenhosResponse:
     filtros = [Desenho.excluido_em.is_(None)]
     termo = busca.strip() if busca else None
@@ -70,9 +83,12 @@ async def pesquisar_desenhos(
         .limit(por_pagina)
     )
     desenhos = (await session.execute(query)).scalars().all()
+    total_paginas = (total + por_pagina - 1) // por_pagina
     return CatalogoDesenhosResponse(
         itens=[_card_desenho(desenho) for desenho in desenhos],
         total=total,
         pagina=pagina,
         por_pagina=por_pagina,
+        total_paginas=total_paginas,
+        tem_mais=pagina < total_paginas,
     )

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, Power, Trash2, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import LoadingSpinner from '../ui/LoadingSpinner.vue'
 
 defineProps<{ title: string; description: string; destructive?: boolean; loading?: boolean; error?: string }>()
 defineEmits<{ cancel: []; confirm: [] }>()

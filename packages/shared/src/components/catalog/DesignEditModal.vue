@@ -2,10 +2,11 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { AlertCircle, Save, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { catalogService } from '@/services/catalogService'
-import type { Categoria, DesenhoDetalhe } from '@/types/api'
+import type { Categoria, DesenhoDetalhe } from '@catalogo-bordados/shared'
+import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { catalogService } from '@catalogo-runtime/services/catalogService'
+
+import LoadingSpinner from '../ui/LoadingSpinner.vue'
 
 const props = defineProps<{
   design: DesenhoDetalhe

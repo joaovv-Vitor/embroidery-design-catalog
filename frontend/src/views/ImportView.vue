@@ -12,7 +12,7 @@ import {
   UploadCloud,
 } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import LoadingSpinner from '@catalogo-bordados/shared/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
 import { importSelectionAdapter } from '@/platform/importSelection'
 import { importService } from '@/services/importService'

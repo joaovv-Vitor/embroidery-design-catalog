@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { AlertCircle, CalendarDays, ImageOff, Scissors, X } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import LoadingSpinner from '@catalogo-bordados/shared/components/ui/LoadingSpinner.vue'
 import { apiErrorMessage } from '@/composables/useApiError'
 import { apiAssetUrl } from '@/services/api'
 import { showcaseService } from '@/services/showcaseService'

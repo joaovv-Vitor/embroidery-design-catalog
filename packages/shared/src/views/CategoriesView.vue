@@ -2,10 +2,11 @@
 import { onMounted, ref } from 'vue'
 import { AlertCircle, Edit3, Plus, Save, Tag, Trash2, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { catalogService } from '@/services/catalogService'
-import type { Categoria } from '@/types/api'
+import type { Categoria } from '@catalogo-bordados/shared'
+import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { catalogService } from '@catalogo-runtime/services/catalogService'
+
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 
 const DEFAULT_COLOR = '#7c6a8d'
 

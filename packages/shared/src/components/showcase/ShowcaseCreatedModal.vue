@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckCircle2, Copy, MessageCircle, X } from 'lucide-vue-next'
 
-import type { VitrineCriada } from '@/types/api'
+import type { VitrineCriada } from '@catalogo-bordados/shared'
 
 defineProps<{ showcase: VitrineCriada; feedback?: string }>()
 defineEmits<{ close: []; copy: []; whatsapp: [] }>()

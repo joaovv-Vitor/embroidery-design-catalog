@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Check, ImageOff, Star } from 'lucide-vue-next'
 
-import { apiAssetUrl } from '@/services/api'
-import type { DesenhoCard } from '@/types/api'
+import type { DesenhoCard } from '@catalogo-bordados/shared'
+import { apiAssetUrl } from '@catalogo-runtime/services/api'
 
 defineProps<{
   design: DesenhoCard

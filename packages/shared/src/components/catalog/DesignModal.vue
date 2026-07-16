@@ -2,11 +2,12 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Star, Trash2, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { apiAssetUrl } from '@/services/api'
-import { catalogService } from '@/services/catalogService'
-import type { DesenhoDetalhe, MatrizVariacao } from '@/types/api'
+import type { DesenhoDetalhe, MatrizVariacao } from '@catalogo-bordados/shared'
+import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { apiAssetUrl } from '@catalogo-runtime/services/api'
+import { catalogService } from '@catalogo-runtime/services/catalogService'
+
+import LoadingSpinner from '../ui/LoadingSpinner.vue'
 
 const props = defineProps<{
   design: DesenhoDetalhe

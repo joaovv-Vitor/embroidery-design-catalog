@@ -2,11 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { AlertCircle, CalendarDays, Copy, GalleryHorizontalEnd, MessageCircle, Power, RefreshCw, Trash2 } from 'lucide-vue-next'
 
-import ShowcaseActionModal from '@/components/showcase/ShowcaseActionModal.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { showcaseService } from '@/services/showcaseService'
-import type { VitrineGerencial } from '@/types/api'
-import { copyText, shareOnWhatsApp } from '@/utils/share'
+import type { VitrineGerencial } from '@catalogo-bordados/shared'
+import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { showcaseService } from '@catalogo-runtime/services/showcaseService'
+import { copyText, shareOnWhatsApp } from '@catalogo-runtime/utils/share'
+
+import ShowcaseActionModal from '../components/showcase/ShowcaseActionModal.vue'
 
 const items = ref<VitrineGerencial[]>([])
 const loading = ref(true)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {GalleryHorizontalEnd,Menu,X,LibraryBig,Upload,Tags,Trash2,ShieldCheck,Scissors} from 'lucide-vue-next';
+import {GalleryHorizontalEnd,Menu,X,LibraryBig,Upload,Tags,Trash2,ShieldCheck,Scissors} from 'lucide-vue-next'
 import {ref} from 'vue';
 const open=ref(false);
 const items=[['/','Catálogo',LibraryBig],['/importar','Importar matrizes',Upload],['/categorias','Categorias',Tags],['/vitrines','Vitrines compartilhadas',GalleryHorizontalEnd],['/lixeira','Lixeira',Trash2]] as const;

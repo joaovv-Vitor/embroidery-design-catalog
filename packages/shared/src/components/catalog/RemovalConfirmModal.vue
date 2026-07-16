@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, Trash2, X } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import LoadingSpinner from '../ui/LoadingSpinner.vue'
 
 defineProps<{
   designName: string

@@ -2,12 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { AlertCircle, Clock3, ImageOff, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
 
-import RemovalConfirmModal from '@/components/catalog/RemovalConfirmModal.vue'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { apiAssetUrl } from '@/services/api'
-import { catalogService } from '@/services/catalogService'
-import type { DesenhoLixeira } from '@/types/api'
+import type { DesenhoLixeira } from '@catalogo-bordados/shared'
+import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { apiAssetUrl } from '@catalogo-runtime/services/api'
+import { catalogService } from '@catalogo-runtime/services/catalogService'
+
+import RemovalConfirmModal from '../components/catalog/RemovalConfirmModal.vue'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 
 const items = ref<DesenhoLixeira[]>([])
 const loading = ref(true)

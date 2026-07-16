@@ -4,10 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./components/*": "./src/components/*",
+    "./views/*": "./src/views/*"
   },
   "types": "./src/index.ts",
   "dependencies": {
     "axios": "^1.7.9"
+  },
+  "peerDependencies": {
+    "lucide-vue-next": "^0.468.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   }
 }

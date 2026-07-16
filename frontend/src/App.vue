@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppSidebar from '@catalogo-bordados/shared/components/layout/AppSidebar.vue'
 
 const route = useRoute()
 const publicPage = computed(() => route.meta.public === true)

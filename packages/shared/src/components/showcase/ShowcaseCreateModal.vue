@@ -2,9 +2,10 @@
 import { ImageOff, Send, X } from 'lucide-vue-next'
 import { ref } from 'vue'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiAssetUrl } from '@/services/api'
-import type { DesenhoCard } from '@/types/api'
+import type { DesenhoCard } from '@catalogo-bordados/shared'
+import { apiAssetUrl } from '@catalogo-runtime/services/api'
+
+import LoadingSpinner from '../ui/LoadingSpinner.vue'
 
 defineProps<{
   designs: DesenhoCard[]

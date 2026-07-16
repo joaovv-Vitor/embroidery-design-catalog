@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Star, Trash2, X } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Download, ImageOff, MapPin, Pencil, Send, Star, Trash2, X } from 'lucide-vue-next'
 
 import type { DesenhoDetalhe, MatrizVariacao } from '@catalogo-bordados/shared'
 import { apiErrorMessage } from '@catalogo-bordados/shared'
 import { apiAssetUrl } from '@catalogo-runtime/services/api'
 import { catalogService } from '@catalogo-runtime/services/catalogService'
+import { machineTransferAdapter } from '@catalogo-runtime/platform/machineTransfer'
 
 import LoadingSpinner from '../ui/LoadingSpinner.vue'
+import MachineTransferModal from './MachineTransferModal.vue'
 
 const props = defineProps<{
   design: DesenhoDetalhe
@@ -26,10 +28,11 @@ const titleId = `design-detail-title-${props.design.id}`
 const downloadingId = ref<number | null>(null)
 const downloadError = ref('')
 const downloadSuccess = ref('')
+const transferMatrix = ref<MatrizVariacao | null>(null)
 let previousBodyOverflow = ''
 
 function closeOnEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape') emit('close')
+  if (event.key === 'Escape' && !transferMatrix.value) emit('close')
 }
 
 async function downloadMatrix(matrix: MatrizVariacao): Promise<void> {
@@ -211,16 +214,27 @@ onBeforeUnmount(() => {
                 </dl>
               </div>
 
-              <button
-                type="button"
-                class="primary-button w-full shrink-0 !px-3 !py-2 text-sm sm:w-auto"
-                :disabled="downloadingId !== null"
-                @click="downloadMatrix(item)"
-              >
-                <LoadingSpinner v-if="downloadingId === item.id" />
-                <Download v-else :size="17" />
-                {{ downloadingId === item.id ? 'Baixando…' : 'Baixar .PES' }}
-              </button>
+              <div class="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  class="primary-button w-full !px-3 !py-2 text-sm sm:w-auto"
+                  :disabled="downloadingId !== null"
+                  @click="downloadMatrix(item)"
+                >
+                  <LoadingSpinner v-if="downloadingId === item.id" />
+                  <Download v-else :size="17" />
+                  {{ downloadingId === item.id ? 'Baixando…' : 'Baixar .PES' }}
+                </button>
+                <button
+                  v-if="machineTransferAdapter.supported"
+                  type="button"
+                  class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-purple px-3 py-2 text-sm font-semibold text-purple transition hover:bg-purple hover:text-white sm:w-auto"
+                  @click="transferMatrix = item"
+                >
+                  <Send :size="17" />
+                  Enviar para máquina
+                </button>
+              </div>
             </div>
 
             <div
@@ -248,4 +262,11 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </div>
+
+  <MachineTransferModal
+    v-if="transferMatrix"
+    :design-name="design.nome"
+    :matrix="transferMatrix"
+    @close="transferMatrix = null"
+  />
 </template>

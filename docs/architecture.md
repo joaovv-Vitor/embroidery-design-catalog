@@ -96,6 +96,7 @@ app/src/platform/       implementações do Tauri/Windows
 | US12 — Criar vitrine | Sim | Sim | Administração compartilhada. |
 | US13 — Visualizar vitrine | Sim | Não | Página pública destinada ao navegador do cliente. |
 | US14 — Gerenciar vitrines | Sim | Sim | Administração compartilhada. |
+| US15 — Enviar para máquina | Não | Sim | Escrita restrita em unidade removível escolhida. |
 
 ## Dependências permitidas
 

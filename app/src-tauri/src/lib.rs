@@ -11,6 +11,8 @@ use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+mod machine_transfer;
+
 #[derive(Default)]
 struct SelectedDirectoryState {
     files: Mutex<HashMap<String, PathBuf>>,
@@ -202,10 +204,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(SelectedDirectoryState::default())
+        .manage(machine_transfer::RemovableDriveState::default())
         .invoke_handler(tauri::generate_handler![
             select_pes_directory,
             read_selected_pes_file,
-            clear_selected_directory
+            clear_selected_directory,
+            machine_transfer::list_removable_drives,
+            machine_transfer::write_pes_to_removable_drive
         ])
         .run(tauri::generate_context!())
         .expect("erro ao executar o Catálogo de Bordados");

@@ -6,7 +6,6 @@ import SharedShowcasesView from '@catalogo-bordados/shared/views/SharedShowcases
 import TrashView from '@catalogo-bordados/shared/views/TrashView.vue'
 
 import ImportView from '@/views/ImportView.vue'
-import PublicShowcaseView from '@/views/PublicShowcaseView.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -16,6 +15,5 @@ export default createRouter({
     { path: '/categorias', component: CategoriesView },
     { path: '/lixeira', component: TrashView },
     { path: '/vitrines', component: SharedShowcasesView },
-    { path: '/vitrines/:token', component: PublicShowcaseView, meta: { public: true } },
   ],
 })

@@ -12,11 +12,11 @@ import {
   UploadCloud,
 } from 'lucide-vue-next'
 
+import { apiErrorMessage, type ImportacaoLote } from '@catalogo-bordados/shared'
 import LoadingSpinner from '@catalogo-bordados/shared/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
+
 import { importSelectionAdapter } from '@/platform/importSelection'
 import { importService } from '@/services/importService'
-import type { ImportacaoLote } from '@/types/api'
 import type { PesImportCandidate } from '@catalogo-bordados/shared'
 
 const router = useRouter()

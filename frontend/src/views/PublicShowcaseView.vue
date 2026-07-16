@@ -3,11 +3,15 @@ import { computed, onMounted, ref } from 'vue'
 import { AlertCircle, CalendarDays, ImageOff, Scissors, X } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
+import {
+  apiErrorMessage,
+  type ItemVitrinePublica,
+  type VitrinePublica,
+} from '@catalogo-bordados/shared'
 import LoadingSpinner from '@catalogo-bordados/shared/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
+
 import { apiAssetUrl } from '@/services/api'
 import { showcaseService } from '@/services/showcaseService'
-import type { ItemVitrinePublica, VitrinePublica } from '@/types/api'
 
 const route = useRoute()
 const showcase = ref<VitrinePublica | null>(null)

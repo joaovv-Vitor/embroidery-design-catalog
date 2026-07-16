@@ -12,18 +12,15 @@ import {
   UploadCloud,
 } from 'lucide-vue-next'
 
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import { apiErrorMessage } from '@/composables/useApiError'
-import { importService } from '@/services/importService'
-import type { ImportacaoLote } from '@/types/api'
+import { apiErrorMessage, type ImportacaoLote } from '@catalogo-bordados/shared'
+import LoadingSpinner from '@catalogo-bordados/shared/components/ui/LoadingSpinner.vue'
 
-interface SelectedPesFile {
-  file: File
-  relativePath: string
-}
+import { importSelectionAdapter } from '@/platform/importSelection'
+import { importService } from '@/services/importService'
+import type { PesImportCandidate } from '@catalogo-bordados/shared'
 
 const router = useRouter()
-const selectedFiles = ref<SelectedPesFile[]>([])
+const selectedFiles = ref<PesImportCandidate[]>([])
 const origin = ref('')
 const batchName = ref('')
 const dragging = ref(false)
@@ -34,11 +31,11 @@ const error = ref('')
 const ignoredFiles = ref(0)
 
 const totalSize = computed(() =>
-  selectedFiles.value.reduce((total, selected) => total + selected.file.size, 0),
+  selectedFiles.value.reduce((total, selected) => total + selected.size, 0),
 )
 
 const hasRelativePaths = computed(() =>
-  selectedFiles.value.some((selected) => selected.relativePath !== selected.file.name),
+  selectedFiles.value.some((selected) => selected.relativePath !== selected.name),
 )
 
 function addFiles(fileList: FileList | File[]): void {
@@ -46,24 +43,16 @@ function addFiles(fileList: FileList | File[]): void {
   report.value = null
 
   const files = Array.from(fileList)
-  const pesFiles = files.filter((file) => file.name.toLowerCase().endsWith('.pes'))
-  ignoredFiles.value += files.length - pesFiles.length
-
-  const existingKeys = new Set(
-    selectedFiles.value.map(
-      ({ file, relativePath }) => `${relativePath}:${file.size}:${file.lastModified}`,
-    ),
-  )
-
-  for (const file of pesFiles) {
-    const relativePath = file.webkitRelativePath || file.name
-    const key = `${relativePath}:${file.size}:${file.lastModified}`
-    if (existingKeys.has(key)) continue
-    existingKeys.add(key)
-    selectedFiles.value.push({ file, relativePath })
+  const candidates = importSelectionAdapter.fromBrowserFiles(files)
+  ignoredFiles.value += files.length - candidates.length
+  const existingKeys = new Set(selectedFiles.value.map(({ key }) => key))
+  for (const candidate of candidates) {
+    if (existingKeys.has(candidate.key)) continue
+    existingKeys.add(candidate.key)
+    selectedFiles.value.push(candidate)
   }
 
-  if (!pesFiles.length && files.length) {
+  if (!candidates.length && files.length) {
     error.value = 'Nenhum arquivo .PES foi encontrado na seleção.'
   }
 }
@@ -97,7 +86,7 @@ async function submit(): Promise<void> {
 
   try {
     report.value = await importService.batch(
-      selectedFiles.value.map(({ file }) => file),
+      await Promise.all(selectedFiles.value.map(({ readFile }) => readFile())),
       {
         caminhos_relativos: selectedFiles.value.map(({ relativePath }) => relativePath),
         identificacao_origem: origin.value.trim() || undefined,
@@ -272,20 +261,20 @@ function reset(): void {
         <div class="max-h-72 divide-y divide-line overflow-y-auto">
           <div
             v-for="(selected, index) in selectedFiles"
-            :key="`${selected.relativePath}-${selected.file.lastModified}`"
+            :key="selected.key"
             class="flex items-center gap-3 p-3"
           >
             <FileCheck2 class="shrink-0 text-sage" :size="19" />
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">{{ selected.file.name }}</p>
+              <p class="truncate text-sm font-medium">{{ selected.name }}</p>
               <p class="truncate text-xs text-muted">
-                {{ selected.relativePath }} · {{ formatSize(selected.file.size) }}
+                {{ selected.relativePath }} · {{ formatSize(selected.size) }}
               </p>
             </div>
             <button
               type="button"
               class="rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-600"
-              :aria-label="`Remover ${selected.file.name}`"
+              :aria-label="`Remover ${selected.name}`"
               @click="removeFile(index)"
             >
               <Trash2 :size="17" />

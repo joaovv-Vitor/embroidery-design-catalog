@@ -1,0 +1,7 @@
+<script setup lang="ts">
+import {GalleryHorizontalEnd,Menu,X,LibraryBig,Upload,Tags,Trash2,ShieldCheck,Scissors} from 'lucide-vue-next'
+import {ref} from 'vue';
+const open=ref(false);
+const items=[['/','Catálogo',LibraryBig],['/importar','Importar matrizes',Upload],['/categorias','Categorias',Tags],['/vitrines','Vitrines compartilhadas',GalleryHorizontalEnd],['/lixeira','Lixeira',Trash2]] as const;
+</script>
+<template><button class="fixed left-5 top-5 z-50 rounded-xl bg-white p-2 shadow md:hidden" aria-label="Abrir menu" @click="open=!open"><X v-if="open"/><Menu v-else/></button><aside :class="['fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-line bg-cream px-5 py-8 transition-transform md:translate-x-0',open?'translate-x-0':'-translate-x-full']"><div class="mb-10 flex items-center gap-3 text-purple"><span class="rounded-xl bg-white p-2 shadow-sm"><Scissors :size="23"/></span><span class="font-serif text-xl leading-5">Catálogo de<br/>Bordados</span></div><nav class="space-y-2"><router-link v-for="[path,label,Icon] in items" :key="String(path)" :to="String(path)" class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-muted transition hover:bg-white" active-class="!bg-[#F8E7E0] !text-purple" @click="open=false"><component :is="Icon" :size="19"/>{{label}}</router-link></nav><div class="mt-auto flex items-center gap-3 rounded-xl border border-line p-3 text-xs text-muted"><ShieldCheck :size="22" class="shrink-0 text-sage"/>Acervo protegido por backup</div></aside></template>

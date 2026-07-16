@@ -1,8 +1,14 @@
 from types import SimpleNamespace
 
-from app.api.routes.v1.catalogo import _card_desenho, _filtro_busca
+from app.api.routes.v1.catalogo import _card_desenho, _filtro_busca, _ordenacao_catalogo
 from app.main import app
-from app.schemas.desenho import CATALOG_DEFAULT_PAGE_SIZE, CATALOG_MAX_PAGE_SIZE, CatalogoDesenhosResponse
+from app.schemas.desenho import (
+    CATALOG_DEFAULT_PAGE_SIZE,
+    CATALOG_MAX_PAGE_SIZE,
+    CatalogoDesenhosResponse,
+    CatalogOrderBy,
+    CatalogOrderDirection,
+)
 
 
 def test_catalog_search_parameters_are_documented() -> None:
@@ -10,7 +16,16 @@ def test_catalog_search_parameters_are_documented() -> None:
     parameters = schema["paths"]["/api/v1/catalogo/desenhos"]["get"]["parameters"]
     parameter_names = {parameter["name"] for parameter in parameters}
 
-    assert {"busca", "favorito", "pagina", "por_pagina"}.issubset(parameter_names)
+    assert {
+        "busca",
+        "categoria_id",
+        "somente_favoritos",
+        "ordenar_por",
+        "ordem",
+        "favorito",
+        "pagina",
+        "por_pagina",
+    }.issubset(parameter_names)
     page_size = next(parameter for parameter in parameters if parameter["name"] == "por_pagina")
 
     assert page_size["schema"]["default"] == CATALOG_DEFAULT_PAGE_SIZE
@@ -23,6 +38,16 @@ def test_search_filter_matches_drawing_and_category_names() -> None:
     assert "desenhos.nome" in query
     assert "categorias.nome" in query
     assert "LIKE" in query
+
+
+def test_catalog_ordering_is_limited_and_deterministic() -> None:
+    nome_ascendente = _ordenacao_catalogo(CatalogOrderBy.NOME, CatalogOrderDirection.ASC)
+    criado_descendente = _ordenacao_catalogo(CatalogOrderBy.CRIADO_EM, CatalogOrderDirection.DESC)
+
+    assert "desenhos.nome ASC" in str(nome_ascendente[0])
+    assert "desenhos.id ASC" in str(nome_ascendente[1])
+    assert "desenhos.criado_em DESC" in str(criado_descendente[0])
+    assert "desenhos.id DESC" in str(criado_descendente[1])
 
 
 def test_catalog_card_exposes_preview_name_and_category() -> None:

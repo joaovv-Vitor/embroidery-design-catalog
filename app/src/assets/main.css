@@ -1,0 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base; @tailwind components; @tailwind utilities;
+@layer base { body { @apply m-0 bg-cream font-sans text-ink antialiased; } button,a,input,select { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:ring-offset-2; } }
+@layer components { .primary-button { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-terracotta px-5 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#c85f40] disabled:cursor-not-allowed disabled:opacity-60; } .field { @apply w-full rounded-xl border border-line bg-white px-4 py-3 text-sm placeholder:text-muted/70; } }

@@ -4,8 +4,9 @@ import { useRouter } from 'vue-router'
 import { FolderOpen, GalleryHorizontalEnd, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
 
 import type { Categoria, DesenhoCard, DesenhoDetalhe, VitrineCriada } from '@catalogo-bordados/shared'
-import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { apiErrorMessage, createLatestRequestGuard } from '@catalogo-bordados/shared'
 import { catalogService } from '@catalogo-runtime/services/catalogService'
+import { catalogStore } from '@catalogo-runtime/services/catalogStore'
 import { showcaseService } from '@catalogo-runtime/services/showcaseService'
 import { copyText, shareOnWhatsApp } from '@catalogo-runtime/utils/share'
 
@@ -46,16 +47,10 @@ const shareFeedback = ref('')
 
 let searchTimer: number | undefined
 let feedbackTimer: number | undefined
-let latestRequest = 0
+const catalogRequestGuard = createLatestRequestGuard()
 
-const visibleItems = computed(() => {
-  if (selectedCategory.value === null) return items.value
-  return items.value.filter((design) => design.categoria?.id === selectedCategory.value)
-})
-
-const visibleTotal = computed(() =>
-  selectedCategory.value === null ? total.value : visibleItems.value.length,
-)
+const visibleItems = computed(() => items.value)
+const visibleTotal = computed(() => total.value)
 
 const selectedDesigns = computed(() => Array.from(selected.value.values()))
 
@@ -64,31 +59,32 @@ const hasActiveFilters = computed(() =>
 )
 
 async function loadCatalog(): Promise<void> {
-  const requestId = ++latestRequest
+  const requestId = catalogRequestGuard.start()
   loading.value = true
   error.value = ''
 
   try {
-    const result = await catalogService.list({
+    const result = await catalogStore.getCatalog({
       busca: query.value.trim() || undefined,
-      favorito: favoritesOnly.value || undefined,
-      por_pagina: 100,
+      categoria_id: selectedCategory.value ?? undefined,
+      somente_favoritos: favoritesOnly.value || undefined,
+      por_pagina: 24,
     })
 
-    if (requestId !== latestRequest) return
+    if (!catalogRequestGuard.isCurrent(requestId)) return
     items.value = result.itens
     total.value = result.total
   } catch (requestError) {
-    if (requestId !== latestRequest) return
+    if (!catalogRequestGuard.isCurrent(requestId)) return
     error.value = apiErrorMessage(requestError, 'Não foi possível carregar seu catálogo.')
   } finally {
-    if (requestId === latestRequest) loading.value = false
+    if (catalogRequestGuard.isCurrent(requestId)) loading.value = false
   }
 }
 
 async function loadCategories(): Promise<void> {
   try {
-    categories.value = await catalogService.categories()
+    categories.value = await catalogStore.getCategories()
   } catch {
     // A pesquisa continua disponível mesmo quando as categorias não carregam.
   }
@@ -200,6 +196,7 @@ async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<voi
 
   try {
     await catalogService.favorite(design.id, newValue)
+    catalogStore.invalidateCatalog()
     if (favoritesOnly.value && previousValue) {
       items.value = items.value.filter((item) => item.id !== design.id)
       total.value = Math.max(0, total.value - 1)
@@ -251,6 +248,7 @@ async function moveDetailToTrash(): Promise<void> {
   try {
     const designId = detail.value.id
     await catalogService.moveToTrash(designId)
+    catalogStore.invalidateCatalog()
     items.value = items.value.filter((item) => item.id !== designId)
     total.value = Math.max(0, total.value - 1)
     closeDetail()
@@ -266,11 +264,12 @@ async function handleEditSaved(): Promise<void> {
   if (!detail.value) return
   const designId = detail.value.id
   editingDetail.value = false
+  catalogStore.invalidateCatalog()
   await Promise.all([openDetail(designId), loadCatalog()])
 }
 
 watch(query, scheduleSearch)
-watch(favoritesOnly, loadCatalog)
+watch([favoritesOnly, selectedCategory], loadCatalog)
 
 onMounted(() => {
   loadCatalog()
@@ -278,6 +277,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  catalogRequestGuard.cancel()
   window.clearTimeout(searchTimer)
   window.clearTimeout(feedbackTimer)
 })

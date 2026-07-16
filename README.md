@@ -1,6 +1,20 @@
 # Embroidery Design Catalog
 
-Catálogo de matrizes de bordado. O backend está em [backend](backend/README.md).
+Catálogo visual e backup de matrizes de bordado.
+
+## Estrutura do projeto
+
+```text
+backend/   API FastAPI, PostgreSQL e MinIO
+frontend/  versão web publicada no Dokploy
+app/       versão desktop Windows com Tauri v2
+```
+
+As decisões sobre responsabilidades, dependências permitidas e distribuição das
+histórias de usuário estão documentadas em
+[docs/architecture.md](docs/architecture.md).
+
+O backend possui instruções próprias em [backend/README.md](backend/README.md).
 
 ## Deploy no Dokploy
 
@@ -29,3 +43,6 @@ VITE_API_URL=https://api.seudominio.com/api/v1
 `CORS_ALLOWED_ORIGINS` recebe a URL pública do frontend. `VITE_API_URL` recebe a
 URL pública da API, incluindo o sufixo `/api/v1`, pois é incorporada ao build do
 frontend.
+
+O diretório `app` não faz parte do Docker Compose. Ele é compilado separadamente
+em um ambiente Windows e consome a mesma API publicada.

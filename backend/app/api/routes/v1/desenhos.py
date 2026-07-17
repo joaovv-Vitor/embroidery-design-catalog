@@ -1,8 +1,9 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Header, HTTPException, Path, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -23,6 +24,8 @@ from app.services.remocao_desenho import RemocaoDesenhoService
 from app.services.storage import ObjectStorage
 
 router = APIRouter(prefix="/desenhos", tags=["desenhos"])
+
+PREVIEW_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
 
 
 def _recuperavel_ate(excluido_em: datetime) -> datetime:
@@ -92,6 +95,26 @@ def _storage_http_exception(error: ClientError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Não foi possível acessar o armazenamento.")
 
 
+def _preview_cache_headers(preview_key: str) -> dict[str, str]:
+    """Return cache headers tied to the immutable preview storage key."""
+    version = hashlib.sha256(preview_key.encode("utf-8")).hexdigest()
+    return {
+        "Cache-Control": PREVIEW_CACHE_CONTROL,
+        "ETag": f'"{version}"',
+    }
+
+
+def _etag_matches(if_none_match: str | None, etag: str) -> bool:
+    if if_none_match is None:
+        return False
+
+    return any(
+        candidate == "*" or candidate.removeprefix("W/") == etag
+        for value in if_none_match.split(",")
+        if (candidate := value.strip())
+    )
+
+
 async def _obter_desenho_ativo(desenho_id: int, session: DbSession) -> Desenho:
     query = select(Desenho).where(Desenho.id == desenho_id, Desenho.excluido_em.is_(None))
     desenho = await session.scalar(query)
@@ -132,17 +155,26 @@ async def visualizar_preview_lixeira(
 async def visualizar_preview(
     desenho_id: Annotated[int, Path(ge=1)],
     session: DbSession,
-) -> StreamingResponse:
+    if_none_match: Annotated[str | None, Header()] = None,
+) -> Response:
     desenho = await _obter_desenho_ativo(desenho_id, session)
     if desenho.imagem_preview_chave is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview não disponível para este desenho.")
+
+    cache_headers = _preview_cache_headers(desenho.imagem_preview_chave)
+    if _etag_matches(if_none_match, cache_headers["ETag"]):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=cache_headers)
 
     try:
         content_type, content = await ObjectStorage().open_object_stream(desenho.imagem_preview_chave)
     except ClientError as error:
         raise _storage_http_exception(error) from error
 
-    return StreamingResponse(content, media_type=content_type or "image/png")
+    return StreamingResponse(
+        content,
+        media_type=content_type or "image/png",
+        headers=cache_headers,
+    )
 
 
 @router.get("/{desenho_id}")

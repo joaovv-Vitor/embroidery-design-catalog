@@ -84,6 +84,16 @@ cargo test
 cargo clippy -- -D warnings
 ```
 
+## Catálogo progressivo
+
+O catálogo carrega 24 desenhos por padrão e busca páginas adicionais somente pela
+ação **Carregar mais desenhos**. Os previews são solicitados quando os cards se
+aproximam da área visível; o navegador pode reutilizá-los por um dia e revalidá-los
+em segundo plano por até sete dias. Para validar o comportamento, abra o painel de
+rede do navegador e confirme que a primeira chamada usa `por_pagina=24`, que cards
+fora da área visível não solicitam preview e que uma segunda visita reutiliza o
+cache quando ainda estiver válido.
+
 ## Instalador Windows
 
 Em um terminal Windows, na raiz do projeto:
@@ -110,6 +120,26 @@ instalador para mudar o ambiente consumido pelo aplicativo.
 - a vitrine pública permanece disponível somente no navegador;
 - o instalador Windows deve ser produzido em ambiente Windows compatível.
 
+## Enviar matriz para a máquina
+
+O aplicativo Windows pode copiar uma variação `.PES` diretamente para uma máquina
+reconhecida pelo Windows como unidade removível. Na tela de detalhes, use **Enviar
+para máquina**, escolha manualmente a unidade e confirme o destino.
+
+O fluxo:
+
+- lista apenas volumes classificados pelo Windows como removíveis;
+- usa a raiz por padrão e aceita uma subpasta relativa opcional;
+- baixa o arquivo original pela mesma API usada pelo download convencional;
+- preserva o backup no servidor;
+- grava primeiro um arquivo temporário e remove esse arquivo em caso de falha;
+- solicita confirmação antes de substituir um nome existente;
+- permite cancelar ou criar uma cópia como `nome (1).PES`.
+
+A versão web continua oferecendo somente **Baixar .PES**. Se uma máquina USB for
+classificada pelo Windows como disco fixo ou dispositivo MTP, ela não aparecerá
+no MVP e precisará de uma integração específica futura.
+
 ### Checklist manual do desktop
 
 - [ ] O aplicativo abre e carrega o catálogo pela API configurada.
@@ -122,6 +152,12 @@ instalador para mudar o ambiente consumido pelo aplicativo.
 - [ ] Uma falha de leitura não interrompe os demais arquivos.
 - [ ] O relatório apresenta sucessos, falhas e motivos.
 - [ ] Nenhum caminho absoluto aparece no catálogo ou nas vitrines.
+- [ ] “Enviar para máquina” aparece somente no aplicativo Windows.
+- [ ] A lista exibe letra, volume e espaço livre da unidade removível.
+- [ ] Subpastas absolutas ou contendo `..` são rejeitadas.
+- [ ] Substituir, cancelar e salvar uma cópia funcionam corretamente.
+- [ ] A remoção da unidade durante a gravação produz uma mensagem compreensível.
+- [ ] Nenhum arquivo temporário permanece após uma falha.
 
 ## Deploy no Dokploy
 

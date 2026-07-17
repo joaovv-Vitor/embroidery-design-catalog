@@ -96,6 +96,7 @@ app/src/platform/       implementações do Tauri/Windows
 | US12 — Criar vitrine | Sim | Sim | Administração compartilhada. |
 | US13 — Visualizar vitrine | Sim | Não | Página pública destinada ao navegador do cliente. |
 | US14 — Gerenciar vitrines | Sim | Sim | Administração compartilhada. |
+| US15 — Enviar para máquina | Não | Sim | Escrita restrita em unidade removível escolhida. |
 
 ## Dependências permitidas
 
@@ -152,3 +153,13 @@ Além dos testes automatizados, confirme que:
 - páginas públicas existem somente em `frontend`;
 - operações nativas ficam em `app/src/platform` ou `app/src-tauri`;
 - somente o `package-lock.json` da raiz é versionado.
+
+## Desempenho do catálogo
+
+O contrato `GET /api/v1/catalogo/desenhos` pagina, filtra e ordena no backend. Web
+e desktop compartilham o mesmo cache de consultas para evitar requisições repetidas
+da mesma página e dos mesmos filtros. Os cards carregam previews por proximidade da
+área visível e o endpoint de preview ativo responde com `ETag` e `Cache-Control`.
+
+Previews da lixeira e previews públicos de vitrines não usam esse cache de longa
+duração, pois precisam refletir alterações de disponibilidade sem atraso.

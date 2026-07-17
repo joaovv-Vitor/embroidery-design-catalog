@@ -9,7 +9,19 @@ import type {
   MatrizAtualizada,
 } from '../types/api'
 
-export interface CatalogParams { busca?:string; favorito?:boolean; pagina?:number; por_pagina?:number }
+export type CatalogOrderBy = 'nome'|'criado_em'|'atualizado_em'
+export type CatalogOrderDirection = 'asc'|'desc'
+
+export interface CatalogParams {
+  busca?:string
+  categoria_id?:number
+  somente_favoritos?:boolean
+  ordenar_por?:CatalogOrderBy
+  ordem?:CatalogOrderDirection
+  pagina?:number
+  por_pagina?:number
+  favorito?:boolean
+}
 export interface UpdateDesignData { nome?:string; categoria_id?:number|null }
 export interface UpdateMatrixData { identificacao_origem?:string|null; caminho_relativo_origem?:string|null }
 export interface CategoryData { nome:string; cor?:string|null; icone?:string|null }

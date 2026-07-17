@@ -54,10 +54,34 @@ async def test_list_drawings_filters_by_favorite() -> None:
     assert "desenhos.favorito IS true" in str(session.query)
 
 
+@pytest.mark.asyncio
+async def test_list_drawings_filters_by_category_and_new_favorite_parameter() -> None:
+    session = _Session(
+        [
+            SimpleNamespace(
+                id=1,
+                nome="Flor",
+                categoria_id=2,
+                favorito=True,
+                categoria=None,
+                imagem_preview_chave=None,
+            ),
+        ]
+    )
+
+    await pesquisar_desenhos(session=session, categoria_id=2, somente_favoritos=True)
+
+    assert session.query is not None
+    assert "desenhos.categoria_id =" in str(session.query)
+    assert "desenhos.favorito IS true" in str(session.query)
+
+
 def test_favorite_routes_are_documented() -> None:
     schema = app.openapi()
     drawings_path = schema["paths"]["/api/v1/catalogo/desenhos"]
 
     parameters = drawings_path["get"]["parameters"]
-    assert any(parameter["name"] == "favorito" for parameter in parameters)
+    assert any(parameter["name"] == "somente_favoritos" for parameter in parameters)
+    favorite_parameter = next(parameter for parameter in parameters if parameter["name"] == "favorito")
+    assert favorite_parameter.get("deprecated") is True
     assert "patch" in schema["paths"]["/api/v1/desenhos/{desenho_id}/favorito"]

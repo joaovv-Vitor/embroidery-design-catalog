@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -16,6 +16,27 @@ if TYPE_CHECKING:
 
 class Desenho(Base):
     __tablename__ = "desenhos"
+    __table_args__ = (
+        Index(
+            "ix_desenhos_catalogo_criado_em_id",
+            "criado_em",
+            "id",
+            postgresql_where=text("excluido_em IS NULL"),
+        ),
+        Index(
+            "ix_desenhos_catalogo_categoria_criado_em_id",
+            "categoria_id",
+            "criado_em",
+            "id",
+            postgresql_where=text("excluido_em IS NULL"),
+        ),
+        Index(
+            "ix_desenhos_catalogo_favoritos_criado_em_id",
+            "criado_em",
+            "id",
+            postgresql_where=text("excluido_em IS NULL AND favorito IS TRUE"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     categoria_id: Mapped[int | None] = mapped_column(ForeignKey("categorias.id", ondelete="SET NULL"), index=True)

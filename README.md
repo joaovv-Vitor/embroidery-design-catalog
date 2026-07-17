@@ -84,6 +84,16 @@ cargo test
 cargo clippy -- -D warnings
 ```
 
+## Catálogo progressivo
+
+O catálogo carrega 24 desenhos por padrão e busca páginas adicionais somente pela
+ação **Carregar mais desenhos**. Os previews são solicitados quando os cards se
+aproximam da área visível; o navegador pode reutilizá-los por um dia e revalidá-los
+em segundo plano por até sete dias. Para validar o comportamento, abra o painel de
+rede do navegador e confirme que a primeira chamada usa `por_pagina=24`, que cards
+fora da área visível não solicitam preview e que uma segunda visita reutiliza o
+cache quando ainda estiver válido.
+
 ## Instalador Windows
 
 Em um terminal Windows, na raiz do projeto:

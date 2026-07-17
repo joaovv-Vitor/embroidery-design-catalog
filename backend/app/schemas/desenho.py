@@ -1,4 +1,20 @@
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
+
+CATALOG_DEFAULT_PAGE_SIZE = 24
+CATALOG_MAX_PAGE_SIZE = 50
+
+
+class CatalogOrderBy(StrEnum):
+    NOME = "nome"
+    CRIADO_EM = "criado_em"
+    ATUALIZADO_EM = "atualizado_em"
+
+
+class CatalogOrderDirection(StrEnum):
+    ASC = "asc"
+    DESC = "desc"
 
 
 class DesenhoResumoResponse(BaseModel):
@@ -28,6 +44,8 @@ class CatalogoDesenhosResponse(BaseModel):
     total: int
     pagina: int
     por_pagina: int
+    total_paginas: int
+    tem_mais: bool
 
 
 class MatrizVariacaoResponse(BaseModel):

@@ -1,4 +1,5 @@
 export * from './services/catalogService'
+export * from './services/catalogStore'
 export * from './services/importService'
 export * from './services/showcaseService'
 export * from './platform/importSelection'

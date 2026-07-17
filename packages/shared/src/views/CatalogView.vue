@@ -4,8 +4,9 @@ import { useRouter } from 'vue-router'
 import { FolderOpen, GalleryHorizontalEnd, RefreshCw, Search, Star, Upload, X } from 'lucide-vue-next'
 
 import type { Categoria, DesenhoCard, DesenhoDetalhe, VitrineCriada } from '@catalogo-bordados/shared'
-import { apiErrorMessage } from '@catalogo-bordados/shared'
+import { apiErrorMessage, createLatestRequestGuard } from '@catalogo-bordados/shared'
 import { catalogService } from '@catalogo-runtime/services/catalogService'
+import { catalogStore } from '@catalogo-runtime/services/catalogStore'
 import { showcaseService } from '@catalogo-runtime/services/showcaseService'
 import { copyText, shareOnWhatsApp } from '@catalogo-runtime/utils/share'
 
@@ -18,13 +19,16 @@ import ShowcaseCreatedModal from '../components/showcase/ShowcaseCreatedModal.vu
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 
 const SEARCH_DEBOUNCE_MS = 300
+const CATALOG_PAGE_SIZE = 24
 
 const router = useRouter()
 const items = ref<DesenhoCard[]>([])
 const categories = ref<Categoria[]>([])
 const total = ref(0)
 const loading = ref(true)
+const loadingMore = ref(false)
 const error = ref('')
+const loadMoreError = ref('')
 const query = ref('')
 const selectedCategory = ref<number | null>(null)
 const favoritesOnly = ref(false)
@@ -43,19 +47,15 @@ const createModalOpen = ref(false)
 const createError = ref('')
 const createdShowcase = ref<VitrineCriada | null>(null)
 const shareFeedback = ref('')
+const page = ref(1)
+const hasMore = ref(false)
 
 let searchTimer: number | undefined
 let feedbackTimer: number | undefined
-let latestRequest = 0
+const catalogRequestGuard = createLatestRequestGuard()
 
-const visibleItems = computed(() => {
-  if (selectedCategory.value === null) return items.value
-  return items.value.filter((design) => design.categoria?.id === selectedCategory.value)
-})
-
-const visibleTotal = computed(() =>
-  selectedCategory.value === null ? total.value : visibleItems.value.length,
-)
+const visibleItems = computed(() => items.value)
+const visibleTotal = computed(() => total.value)
 
 const selectedDesigns = computed(() => Array.from(selected.value.values()))
 
@@ -64,37 +64,73 @@ const hasActiveFilters = computed(() =>
 )
 
 async function loadCatalog(): Promise<void> {
-  const requestId = ++latestRequest
+  const requestId = catalogRequestGuard.start()
   loading.value = true
+  loadingMore.value = false
   error.value = ''
+  loadMoreError.value = ''
 
   try {
-    const result = await catalogService.list({
+    const result = await catalogStore.getCatalog({
       busca: query.value.trim() || undefined,
-      favorito: favoritesOnly.value || undefined,
-      por_pagina: 100,
+      categoria_id: selectedCategory.value ?? undefined,
+      somente_favoritos: favoritesOnly.value || undefined,
+      pagina: 1,
+      por_pagina: CATALOG_PAGE_SIZE,
     })
 
-    if (requestId !== latestRequest) return
+    if (!catalogRequestGuard.isCurrent(requestId)) return
     items.value = result.itens
     total.value = result.total
+    page.value = result.pagina
+    hasMore.value = result.tem_mais
   } catch (requestError) {
-    if (requestId !== latestRequest) return
+    if (!catalogRequestGuard.isCurrent(requestId)) return
     error.value = apiErrorMessage(requestError, 'Não foi possível carregar seu catálogo.')
   } finally {
-    if (requestId === latestRequest) loading.value = false
+    if (catalogRequestGuard.isCurrent(requestId)) loading.value = false
+  }
+}
+
+async function loadMore(): Promise<void> {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+
+  const requestId = catalogRequestGuard.start()
+  loadingMore.value = true
+  loadMoreError.value = ''
+
+  try {
+    const result = await catalogStore.getCatalog({
+      busca: query.value.trim() || undefined,
+      categoria_id: selectedCategory.value ?? undefined,
+      somente_favoritos: favoritesOnly.value || undefined,
+      pagina: page.value + 1,
+      por_pagina: CATALOG_PAGE_SIZE,
+    })
+
+    if (!catalogRequestGuard.isCurrent(requestId)) return
+    const existingIds = new Set(items.value.map((item) => item.id))
+    items.value = [...items.value, ...result.itens.filter((item) => !existingIds.has(item.id))]
+    page.value = result.pagina
+    hasMore.value = result.tem_mais
+  } catch (requestError) {
+    if (!catalogRequestGuard.isCurrent(requestId)) return
+    loadMoreError.value = apiErrorMessage(requestError, 'Não foi possível carregar mais desenhos.')
+  } finally {
+    if (catalogRequestGuard.isCurrent(requestId)) loadingMore.value = false
   }
 }
 
 async function loadCategories(): Promise<void> {
   try {
-    categories.value = await catalogService.categories()
+    categories.value = await catalogStore.getCategories()
   } catch {
     // A pesquisa continua disponível mesmo quando as categorias não carregam.
   }
 }
 
 function scheduleSearch(): void {
+  catalogRequestGuard.cancel()
   window.clearTimeout(searchTimer)
   searchTimer = window.setTimeout(loadCatalog, SEARCH_DEBOUNCE_MS)
 }
@@ -200,9 +236,11 @@ async function toggleFavorite(design: DesenhoCard | DesenhoDetalhe): Promise<voi
 
   try {
     await catalogService.favorite(design.id, newValue)
+    catalogStore.invalidateCatalog()
     if (favoritesOnly.value && previousValue) {
       items.value = items.value.filter((item) => item.id !== design.id)
       total.value = Math.max(0, total.value - 1)
+      hasMore.value = items.value.length < total.value
     }
     showFavoriteFeedback(newValue ? 'Desenho adicionado aos favoritos.' : 'Desenho removido dos favoritos.')
   } catch (requestError) {
@@ -251,8 +289,10 @@ async function moveDetailToTrash(): Promise<void> {
   try {
     const designId = detail.value.id
     await catalogService.moveToTrash(designId)
+    catalogStore.invalidateCatalog()
     items.value = items.value.filter((item) => item.id !== designId)
     total.value = Math.max(0, total.value - 1)
+    hasMore.value = items.value.length < total.value
     closeDetail()
     showFavoriteFeedback('Desenho movido para a lixeira.')
   } catch (requestError) {
@@ -266,11 +306,12 @@ async function handleEditSaved(): Promise<void> {
   if (!detail.value) return
   const designId = detail.value.id
   editingDetail.value = false
+  catalogStore.invalidateCatalog()
   await Promise.all([openDetail(designId), loadCatalog()])
 }
 
 watch(query, scheduleSearch)
-watch(favoritesOnly, loadCatalog)
+watch([favoritesOnly, selectedCategory], loadCatalog)
 
 onMounted(() => {
   loadCatalog()
@@ -278,6 +319,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  catalogRequestGuard.cancel()
   window.clearTimeout(searchTimer)
   window.clearTimeout(feedbackTimer)
 })
@@ -422,6 +464,22 @@ onBeforeUnmount(() => {
         @favorite="toggleFavorite"
         @select="toggleSelection"
       />
+    </div>
+
+    <div v-if="!loading && visibleItems.length" class="mt-8 flex flex-col items-center gap-3">
+      <p v-if="loadMoreError" class="text-sm text-red-700" role="alert">{{ loadMoreError }}</p>
+      <button
+        v-if="hasMore"
+        type="button"
+        class="primary-button min-w-56"
+        :disabled="loadingMore"
+        @click="loadMore"
+      >
+        <LoadingSpinner v-if="loadingMore" />
+        <RefreshCw v-else :size="18" />
+        {{ loadingMore ? 'Carregando desenhos…' : 'Carregar mais desenhos' }}
+      </button>
+      <p v-else class="text-sm text-muted">Todos os desenhos foram carregados.</p>
     </div>
   </section>
 

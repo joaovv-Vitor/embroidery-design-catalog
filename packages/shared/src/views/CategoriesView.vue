@@ -5,6 +5,7 @@ import { AlertCircle, Edit3, Plus, Save, Tag, Trash2, X } from 'lucide-vue-next'
 import type { Categoria } from '@catalogo-bordados/shared'
 import { apiErrorMessage } from '@catalogo-bordados/shared'
 import { catalogService } from '@catalogo-runtime/services/catalogService'
+import { catalogStore } from '@catalogo-runtime/services/catalogStore'
 
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 
@@ -26,7 +27,7 @@ async function loadCategories(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    categories.value = await catalogService.categories()
+    categories.value = await catalogStore.getCategories()
   } catch (requestError) {
     error.value = apiErrorMessage(requestError, 'Não foi possível carregar as categorias.')
   } finally {
@@ -86,6 +87,7 @@ async function saveCategory(): Promise<void> {
       success.value = 'Categoria atualizada com sucesso.'
     }
 
+    catalogStore.invalidateAll()
     formOpen.value = false
     editingId.value = null
     await loadCategories()
@@ -108,6 +110,7 @@ async function deleteCategory(category: Categoria): Promise<void> {
 
   try {
     await catalogService.deleteCategory(category.id)
+    catalogStore.invalidateAll()
     categories.value = categories.value.filter((item) => item.id !== category.id)
     success.value = 'Categoria excluída com sucesso.'
   } catch (requestError) {

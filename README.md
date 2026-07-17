@@ -1,191 +1,89 @@
-# Embroidery Design Catalog
+# Catálogo de Bordados
 
-Catálogo visual e backup de matrizes de bordado.
+Sistema para organizar, localizar e preservar matrizes de bordado `.PES`. O
+catálogo transforma arquivos espalhados em pastas e dispositivos em um acervo
+visual, com previews, metadados, categorias e backup do arquivo original.
 
-## Estrutura do projeto
+O projeto oferece duas experiências que consomem a mesma API:
+
+- **site web**, para administrar o catálogo e publicar vitrines para clientes;
+- **aplicativo Windows**, com acesso controlado a pastas locais e unidades
+  removíveis.
+
+## Funcionalidades
+
+- catálogo visual com pesquisa, paginação progressiva, categorias e favoritos;
+- importação unitária ou em lote de matrizes `.PES`;
+- extração de dimensões, pontos e cores, com geração de preview PNG;
+- backup do arquivo original no MinIO e download com o nome preservado;
+- edição de metadados, lixeira com restauração e exclusão permanente;
+- vitrines temporárias compartilháveis por link e WhatsApp;
+- seleção recursiva de pastas e envio para máquina no aplicativo Windows.
+
+Consulte [Funcionalidades](docs/features.md) para conhecer o escopo e as
+limitações de cada plataforma.
+
+## Arquitetura
 
 ```text
-backend/   API FastAPI, PostgreSQL e MinIO
-frontend/  versão web publicada no Dokploy
-app/       versão desktop Windows com Tauri v2
+Site Vue ───────┐
+                ├──> API FastAPI ──> PostgreSQL
+App Tauri/Vue ──┘              └────> MinIO
+       │
+       └──> recursos locais autorizados do Windows
 ```
 
-As decisões sobre responsabilidades, dependências permitidas e distribuição das
-histórias de usuário estão documentadas em
-[docs/architecture.md](docs/architecture.md).
+```text
+backend/          API, regras de negócio e processamento PES
+frontend/         site web publicado com Nginx
+app/              aplicativo Windows com Tauri v2
+packages/shared/  componentes e serviços compartilhados
+docs/             documentação do projeto
+```
 
-O backend possui instruções próprias em [backend/README.md](backend/README.md).
+As fronteiras e decisões técnicas estão em [Arquitetura](docs/architecture.md).
 
-## Requisitos
+## Início rápido
 
-- Node.js 20 ou superior;
-- npm 10 ou superior;
-- Python 3.11 ou superior para o backend;
-- Rust stable e pré-requisitos do Tauri v2 para compilar o desktop;
-- Windows 10/11 com WebView2 para gerar e executar o instalador Windows.
-
-Instale todas as dependências JavaScript uma única vez na raiz:
+Pré-requisitos principais: Python 3.11 ou superior, Node.js 20 ou superior,
+PostgreSQL e um serviço compatível com S3, como MinIO. O aplicativo desktop
+também requer Rust, Tauri v2 e as ferramentas de compilação do Windows.
 
 ```bash
+git clone <url-do-repositorio>
+cd embroidery-design-catalog
 npm install
 ```
 
-O repositório utiliza npm workspaces e possui somente um `package-lock.json`, na
-raiz. Não execute `npm install` isoladamente dentro de `frontend` ou `app`.
+O passo a passo completo, incluindo variáveis de ambiente e migrations, está em
+[Desenvolvimento](docs/development.md). Com o backend em execução:
 
-## Desenvolvimento web
+- API: `http://localhost:8000`;
+- Swagger: `http://localhost:8000/docs`;
+- saúde: `http://localhost:8000/health`.
 
-Copie `frontend/.env.example` para `frontend/.env.local` e configure a API:
+## Status
 
-```env
-VITE_API_URL=http://localhost:8000/api/v1
-```
+O núcleo do produto está implementado e é validado primeiro em homologação. A
+versão web e o aplicativo Windows permanecem dependentes do backend e não possuem
+modo offline nem atualização automática. Suporte a dispositivos classificados
+como disco fixo ou MTP está fora do escopo atual.
 
-Execute:
+## Documentação
 
-```bash
-npm run dev:web
-```
+- [Funcionalidades](docs/features.md)
+- [Desenvolvimento local](docs/development.md)
+- [Deploy](docs/deployment.md)
+- [Aplicativo desktop](docs/desktop.md)
+- [API](docs/api.md)
+- [Banco e armazenamento](docs/database.md)
+- [Testes](docs/testing.md)
+- [Contribuição](docs/contributing.md)
+- [Segurança](docs/security.md)
+- [Guia de screenshots](docs/screenshots/README.md)
 
-A versão web continua responsável pela página pública das vitrines.
+## Documentação relacionada
 
-## Desenvolvimento desktop
-
-Copie `app/.env.example` para `app/.env.local`. Para usar a API implantada:
-
-```env
-VITE_API_URL=https://api.seudominio.com/api/v1
-```
-
-No Windows, execute a partir da raiz:
-
-```bash
-npm run dev:app
-```
-
-O seletor nativo permite somente a pasta escolhida pela usuária. O Rust mantém os
-caminhos absolutos em memória e envia ao Vue apenas identificadores, nomes e
-caminhos relativos.
-
-## Verificações
-
-```bash
-npm test
-npm run typecheck
-npm run check
-```
-
-`npm run check` executa typecheck, testes e builds das camadas web e desktop. Para
-validar também a camada Rust, em um computador com Rust instalado:
-
-```bash
-cd app/src-tauri
-cargo test
-cargo clippy -- -D warnings
-```
-
-## Catálogo progressivo
-
-O catálogo carrega 24 desenhos por padrão e busca páginas adicionais somente pela
-ação **Carregar mais desenhos**. Os previews são solicitados quando os cards se
-aproximam da área visível; o navegador pode reutilizá-los por um dia e revalidá-los
-em segundo plano por até sete dias. Para validar o comportamento, abra o painel de
-rede do navegador e confirme que a primeira chamada usa `por_pagina=24`, que cards
-fora da área visível não solicitam preview e que uma segunda visita reutiliza o
-cache quando ainda estiver válido.
-
-## Instalador Windows
-
-Em um terminal Windows, na raiz do projeto:
-
-```bash
-npm install
-npm run build:app
-```
-
-Os instaladores MSI e NSIS serão gerados em:
-
-```text
-app/src-tauri/target/release/bundle/
-```
-
-A URL da API é incorporada durante o build pelo `VITE_API_URL`. Gere novamente o
-instalador para mudar o ambiente consumido pelo aplicativo.
-
-### Limitações atuais do desktop
-
-- requer conexão com o backend implantado;
-- não possui funcionamento offline nem atualização automática;
-- não monitora pendrives ou pastas em segundo plano;
-- a vitrine pública permanece disponível somente no navegador;
-- o instalador Windows deve ser produzido em ambiente Windows compatível.
-
-## Enviar matriz para a máquina
-
-O aplicativo Windows pode copiar uma variação `.PES` diretamente para uma máquina
-reconhecida pelo Windows como unidade removível. Na tela de detalhes, use **Enviar
-para máquina**, escolha manualmente a unidade e confirme o destino.
-
-O fluxo:
-
-- lista apenas volumes classificados pelo Windows como removíveis;
-- usa a raiz por padrão e aceita uma subpasta relativa opcional;
-- baixa o arquivo original pela mesma API usada pelo download convencional;
-- preserva o backup no servidor;
-- grava primeiro um arquivo temporário e remove esse arquivo em caso de falha;
-- solicita confirmação antes de substituir um nome existente;
-- permite cancelar ou criar uma cópia como `nome (1).PES`.
-
-A versão web continua oferecendo somente **Baixar .PES**. Se uma máquina USB for
-classificada pelo Windows como disco fixo ou dispositivo MTP, ela não aparecerá
-no MVP e precisará de uma integração específica futura.
-
-### Checklist manual do desktop
-
-- [ ] O aplicativo abre e carrega o catálogo pela API configurada.
-- [ ] O seletor nativo abre somente após ação da usuária.
-- [ ] Uma pasta vazia apresenta uma mensagem clara.
-- [ ] Arquivos `.pes` e `.PES` são encontrados recursivamente.
-- [ ] Arquivos não PES são ignorados.
-- [ ] Nomes e caminhos relativos aparecem antes do envio.
-- [ ] É possível cancelar a seleção sem importar.
-- [ ] Uma falha de leitura não interrompe os demais arquivos.
-- [ ] O relatório apresenta sucessos, falhas e motivos.
-- [ ] Nenhum caminho absoluto aparece no catálogo ou nas vitrines.
-- [ ] “Enviar para máquina” aparece somente no aplicativo Windows.
-- [ ] A lista exibe letra, volume e espaço livre da unidade removível.
-- [ ] Subpastas absolutas ou contendo `..` são rejeitadas.
-- [ ] Substituir, cancelar e salvar uma cópia funcionam corretamente.
-- [ ] A remoção da unidade durante a gravação produz uma mensagem compreensível.
-- [ ] Nenhum arquivo temporário permanece após uma falha.
-
-## Deploy no Dokploy
-
-O arquivo `docker-compose.yml` mantém backend e frontend como serviços separados e
-configura `endpoint_mode: dnsrr`, necessário para aplicações Docker Swarm em LXC
-do Proxmox.
-
-No Dokploy, crie uma aplicação do tipo **Docker Compose**, selecione esse arquivo
-e cadastre os domínios pela aba **Domains**. Configure ao menos estas variáveis de
-ambiente na aplicação:
-
-```env
-APP_NAME=Embroidery Design Catalog
-APP_ENV=production
-DATABASE_URL=postgresql+asyncpg://usuario:senha@host:5432/catalogo_bordados
-S3_ENDPOINT_URL=https://minio.seudominio.com
-S3_ACCESS_KEY=sua_chave
-S3_SECRET_KEY=seu_segredo
-S3_BUCKET=matrizes-bordado
-S3_REGION=us-east-1
-TRASH_RETENTION_DAYS=30
-CORS_ALLOWED_ORIGINS=["https://app.seudominio.com"]
-VITE_API_URL=https://api.seudominio.com/api/v1
-```
-
-`CORS_ALLOWED_ORIGINS` recebe a URL pública do frontend. `VITE_API_URL` recebe a
-URL pública da API, incluindo o sufixo `/api/v1`, pois é incorporada ao build do
-frontend.
-
-O diretório `app` não faz parte do Docker Compose. Ele é compilado separadamente
-em um ambiente Windows e consome a mesma API publicada.
+Para preparar um ambiente novo, comece por [Desenvolvimento](docs/development.md).
+Para publicar uma versão, consulte [Deploy](docs/deployment.md) e
+[Testes](docs/testing.md).
